@@ -1,0 +1,234 @@
+"""
+API Routes - Main router for all endpoints
+"""
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import Response, StreamingResponse
+import io
+
+from app.schemas import (
+    BoxModel,
+    ConfigurationInput,
+    ValidationResult,
+    LayoutResult,
+    OutputFormat,
+    GenerateRequest,
+    BOMItem,
+    BOMResult,
+)
+from app.models import get_all_box_models, get_box_model_by_id
+from app.services import (
+    run_full_validation,
+    calculate_full_layout,
+    generate_pdf,
+    generate_dxf,
+    generate_cad_svg_content,
+)
+
+router = APIRouter()
+
+
+# ==================== BOX MODELS ====================
+
+@router.get("/boxes", response_model=list[BoxModel])
+async def list_box_models():
+    """Get all available box models"""
+    return get_all_box_models()
+
+
+@router.get("/boxes/{box_id}", response_model=BoxModel)
+async def get_box_model(box_id: str):
+    """Get a specific box model by ID"""
+    box = get_box_model_by_id(box_id)
+    if not box:
+        raise HTTPException(status_code=404, detail=f"Box model '{box_id}' not found")
+    return box
+
+
+# ==================== VALIDATION ====================
+
+@router.post("/validate", response_model=ValidationResult)
+async def validate_configuration(config: ConfigurationInput):
+    """
+    Validate a configuration against engineering rules.
+    
+    Returns validation errors and warnings.
+    """
+    return run_full_validation(config)
+
+
+# ==================== GEOMETRY ====================
+
+@router.post("/layout", response_model=LayoutResult)
+async def calculate_layout(config: ConfigurationInput):
+    """
+    Calculate complete layout for a configuration.
+    
+    Returns rail positions and hole coordinates.
+    """
+    # First validate
+    validation = run_full_validation(config)
+    if not validation.is_valid:
+        raise HTTPException(
+            status_code=400, 
+            detail={"message": "Invalid configuration", "errors": [e.dict() for e in validation.errors]}
+        )
+    
+    try:
+        return calculate_full_layout(config)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ==================== DRAWING GENERATION ====================
+
+@router.post("/generate/pdf")
+async def generate_pdf_drawing(config: ConfigurationInput):
+    """
+    Generate a professional PDF drawing.
+    
+    Returns PDF file as download.
+    """
+    # Validate first
+    validation = run_full_validation(config)
+    if not validation.is_valid:
+        raise HTTPException(
+            status_code=400,
+            detail={"message": "Invalid configuration", "errors": [e.dict() for e in validation.errors]}
+        )
+    
+    try:
+        # Calculate layout
+        layout = calculate_full_layout(config)
+        
+        # Generate PDF
+        pdf_bytes = generate_pdf(config, layout)
+        
+        # Get box for filename
+        box = get_box_model_by_id(config.box_id)
+        filename = f"DRV-{box.id.upper()}-001.pdf" if box else "drawing.pdf"
+        
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}"
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
+
+
+@router.post("/generate/dxf")
+async def generate_dxf_drawing(config: ConfigurationInput):
+    """
+    Generate an AutoCAD-compatible DXF drawing.
+    
+    Returns DXF file as download.
+    """
+    # Validate first
+    validation = run_full_validation(config)
+    if not validation.is_valid:
+        raise HTTPException(
+            status_code=400,
+            detail={"message": "Invalid configuration", "errors": [e.dict() for e in validation.errors]}
+        )
+    
+    try:
+        # Calculate layout
+        layout = calculate_full_layout(config)
+        
+        # Generate DXF
+        dxf_bytes = generate_dxf(config, layout)
+        
+        # Get box for filename
+        box = get_box_model_by_id(config.box_id)
+        filename = f"DRV-{box.id.upper()}-001.dxf" if box else "drawing.dxf"
+        
+        return Response(
+            content=dxf_bytes,
+            media_type="application/dxf",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}"
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"DXF generation failed: {str(e)}")
+
+
+@router.post("/generate/preview")
+async def generate_preview(config: ConfigurationInput):
+    """
+    Generate High-Fidelity 3D Preview (SVG).
+    """
+    # Validate first
+    validation = run_full_validation(config)
+    if not validation.is_valid:
+        raise HTTPException(
+            status_code=400,
+            detail={"message": "Invalid configuration", "errors": [e.dict() for e in validation.errors]}
+        )
+    
+    try:
+        svg_bytes = generate_cad_svg_content(config)
+        return Response(content=svg_bytes, media_type="image/svg+xml")
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Preview generation failed: {str(e)}")
+
+
+# ==================== BOM ====================
+
+@router.post("/bom", response_model=BOMResult)
+async def generate_bom(config: ConfigurationInput):
+    """
+    Generate Bill of Materials for a configuration.
+    """
+    box = get_box_model_by_id(config.box_id)
+    if not box:
+        raise HTTPException(status_code=404, detail=f"Box model '{config.box_id}' not found")
+    
+    total_holes = config.holes_top + config.holes_bottom + config.holes_left + config.holes_right
+    
+    items = []
+    item_no = 1
+    
+    # Enclosure
+    items.append(BOMItem(
+        item_no=item_no,
+        part_name=f"{box.name} Enclosure",
+        part_code=f"P+F-{box.id.upper()}",
+        quantity=1
+    ))
+    item_no += 1
+    
+    # DIN Rails
+    if box.rail_count > 0:
+        items.append(BOMItem(
+            item_no=item_no,
+            part_name="NS 35 DIN Rail",
+            part_code="NS35-DIN",
+            quantity=box.rail_count
+        ))
+        item_no += 1
+    
+    # Terminals
+    if config.terminals > 0:
+        items.append(BOMItem(
+            item_no=item_no,
+            part_name="UT 2,5 Terminal Block",
+            part_code="PHX-UT2.5",
+            quantity=config.terminals
+        ))
+        item_no += 1
+    
+    # Cable Glands
+    if total_holes > 0:
+        items.append(BOMItem(
+            item_no=item_no,
+            part_name="M20 Cable Gland",
+            part_code="M20-GL",
+            quantity=total_holes
+        ))
+    
+    return BOMResult(items=items, total_items=len(items))
