@@ -1,6 +1,7 @@
 # Models module
 from .box_models import (
     BOX_MODELS_DATA,
+    EJBX_MODELS_DATA,
     COMPONENTS,
     SALT_MALZEME_COMPONENTS,
     get_all_box_models,

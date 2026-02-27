@@ -1,5 +1,5 @@
 """
-Box model data - Engineering constants for EJB Series
+Box model data - Engineering constants for EJB and EJBX Series
 All units are in millimeters (mm)
 """
 from typing import Dict, List, Optional
@@ -7,7 +7,7 @@ from app.schemas import BoxModel
 
 
 # Static box model data (will be moved to database later)
-BOX_MODELS_DATA: List[Dict] = [
+_EJB_MODELS_DATA: List[Dict] = [
     {
         "id": "ejb21",
         "name": "EJB 21",
@@ -126,6 +126,64 @@ BOX_MODELS_DATA: List[Dict] = [
         "max_terminals": 140
     }
 ]
+
+# EJBX series model data (dimensions are placeholders pending customer STEP files)
+EJBX_MODELS_DATA: List[Dict] = [
+    {
+        "id": "ejbx1",
+        "name": "EJBX 1",
+        "internal_length": 200,
+        "internal_width": 160,
+        "internal_depth": 120,
+        "mounting_plate_x": 240,
+        "mounting_plate_y": 180,
+        "max_holes_long": 8,
+        "max_holes_short": 6,
+        "rail_count": 1,
+        "max_terminals": 20
+    },
+    {
+        "id": "ejbx2",
+        "name": "EJBX 2",
+        "internal_length": 300,
+        "internal_width": 230,
+        "internal_depth": 150,
+        "mounting_plate_x": 340,
+        "mounting_plate_y": 260,
+        "max_holes_long": 16,
+        "max_holes_short": 10,
+        "rail_count": 2,
+        "max_terminals": 40
+    },
+    {
+        "id": "ejbx3",
+        "name": "EJBX 3",
+        "internal_length": 400,
+        "internal_width": 310,
+        "internal_depth": 200,
+        "mounting_plate_x": 450,
+        "mounting_plate_y": 340,
+        "max_holes_long": 24,
+        "max_holes_short": 14,
+        "rail_count": 2,
+        "max_terminals": 60
+    },
+    {
+        "id": "ejbx4",
+        "name": "EJBX 4",
+        "internal_length": 500,
+        "internal_width": 400,
+        "internal_depth": 250,
+        "mounting_plate_x": 560,
+        "mounting_plate_y": 440,
+        "max_holes_long": 32,
+        "max_holes_short": 18,
+        "rail_count": 3,
+        "max_terminals": 80
+    },
+]
+
+BOX_MODELS_DATA = _EJB_MODELS_DATA + EJBX_MODELS_DATA
 
 # Component specifications
 COMPONENTS = {
