@@ -243,3 +243,55 @@ class SwitchgearLayoutResult(BaseModel):
     holes_right: List[HolePosition]
     switchgear_positions: List[SwitchgearPosition] = []
     cover_element_positions: List[CoverElementPosition] = []
+
+
+# ==================== ORDER / CONFIGURATION HISTORY ====================
+
+class OrderCreate(BaseModel):
+    """Request to save a configuration as an order"""
+    box_id: str
+    terminals: int = 0
+    holes_top: int = 0
+    holes_bottom: int = 0
+    holes_left: int = 0
+    holes_right: int = 0
+    holes_top_spec: Optional[HoleSideInput] = None
+    holes_bottom_spec: Optional[HoleSideInput] = None
+    holes_left_spec: Optional[HoleSideInput] = None
+    holes_right_spec: Optional[HoleSideInput] = None
+    notes: Optional[str] = None
+
+
+class OrderResponse(BaseModel):
+    """Saved order response"""
+    id: int
+    drawing_number: str
+    box_id: str
+    terminals: int
+    holes_top: int
+    holes_bottom: int
+    holes_left: int
+    holes_right: int
+    notes: Optional[str] = None
+    created_at: str
+    creator_name: Optional[str] = None
+
+
+class OrderListResponse(BaseModel):
+    orders: List[OrderResponse]
+    total: int
+
+
+# ==================== LABEL ====================
+
+class LabelInput(BaseModel):
+    """Input for panel label generation"""
+    box_id: str
+    drawing_number: Optional[str] = None
+    order_number: Optional[str] = None
+    customer_name: Optional[str] = None
+    project_name: Optional[str] = None
+    panel_name: Optional[str] = None
+    voltage: Optional[str] = "230V AC"
+    ip_rating: Optional[str] = "IP66"
+    date: Optional[str] = None

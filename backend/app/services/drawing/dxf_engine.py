@@ -17,7 +17,8 @@ class DXFDrawingEngine:
     def __init__(self):
         self.scale = 1.0  # DXF uses real-world units (mm)
         
-    def generate(self, config: ConfigurationInput, layout: LayoutResult) -> bytes:
+    def generate(self, config: ConfigurationInput, layout: LayoutResult,
+                 switchgear_positions: list | None = None) -> bytes:
         """
         Generate a DXF drawing for the given configuration.
         
@@ -44,6 +45,7 @@ class DXFDrawingEngine:
         self._draw_rails(msp, layout, box)
         self._draw_terminals(msp, layout, box)
         self._draw_holes(msp, layout, box)
+        self._draw_switchgear(msp, switchgear_positions)
         self._draw_dimensions(msp, box)
         self._draw_title_block(msp, config, box)
         
@@ -204,6 +206,29 @@ class DXFDrawingEngine:
             msp.add_line((cx, cy - 8), (cx, cy + 8), 
                         dxfattribs={'layer': 'HOLES'})
     
+    def _draw_switchgear(self, msp, switchgear_positions: list | None) -> None:
+        """Draw switchgear components on rails"""
+        if not switchgear_positions:
+            return
+        for pos in switchgear_positions:
+            x1 = pos.x
+            y1 = pos.y - pos.height / 2
+            x2 = pos.x + pos.width
+            y2 = pos.y + pos.height / 2
+            msp.add_lwpolyline(
+                [(x1, y1), (x2, y1), (x2, y2), (x1, y2), (x1, y1)],
+                dxfattribs={'layer': 'TERMINALS', 'lineweight': 18}
+            )
+            if pos.label:
+                msp.add_text(
+                    pos.label,
+                    dxfattribs={
+                        'layer': 'TEXT',
+                        'height': 4,
+                        'insert': (x1 + 1, pos.y - 2)
+                    }
+                )
+
     def _draw_dimensions(self, msp, box):
         """Draw dimension annotations"""
         # Width dimension (bottom)
@@ -279,6 +304,7 @@ class DXFDrawingEngine:
 dxf_engine = DXFDrawingEngine()
 
 
-def generate_dxf(config: ConfigurationInput, layout: LayoutResult) -> bytes:
+def generate_dxf(config: ConfigurationInput, layout: LayoutResult,
+                 switchgear_positions: list | None = None) -> bytes:
     """Generate DXF drawing"""
-    return dxf_engine.generate(config, layout)
+    return dxf_engine.generate(config, layout, switchgear_positions)

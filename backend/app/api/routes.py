@@ -1,12 +1,14 @@
 """
 API Routes - Main router for all endpoints
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import Response, StreamingResponse
+from sqlalchemy.orm import Session
 import io
 import os
 import json
 import subprocess
+from datetime import datetime
 
 from app.schemas import (
     BoxModel,
@@ -19,7 +21,15 @@ from app.schemas import (
     BOMResult,
     SwitchgearConfigurationInput,
     CoverElementPlacement,
+    OrderCreate,
+    OrderResponse,
+    OrderListResponse,
+    LabelInput,
 )
+from app.core.database import get_db
+from app.core.auth import get_current_user
+from app.models.user import User
+from app.models.configuration import Configuration
 from app.models import (
     get_all_box_models,
     get_box_model_by_id,
@@ -446,4 +456,196 @@ async def calculate_switchgear_layout(config: SwitchgearConfigurationInput):
         holes_right=base_layout.holes_right,
         switchgear_positions=sw_positions,
         cover_element_positions=cover_positions,
+    )
+
+
+@router.post("/switchgear/generate/pdf")
+async def generate_switchgear_pdf(config: SwitchgearConfigurationInput):
+    """Generate PDF with switchgear components and cover elements."""
+    base_config = ConfigurationInput(
+        box_id=config.box_id,
+        terminals=config.terminals,
+        holes_top=config.holes_top,
+        holes_bottom=config.holes_bottom,
+        holes_left=config.holes_left,
+        holes_right=config.holes_right,
+        holes_top_spec=config.holes_top_spec,
+        holes_bottom_spec=config.holes_bottom_spec,
+        holes_left_spec=config.holes_left_spec,
+        holes_right_spec=config.holes_right_spec,
+    )
+    validation = run_full_validation(base_config)
+    if not validation.is_valid:
+        raise HTTPException(
+            status_code=400,
+            detail={"message": "Invalid configuration", "errors": [e.dict() for e in validation.errors]}
+        )
+
+    base_layout = calculate_full_layout(base_config)
+
+    sw_positions, sw_errors, _ = calculate_switchgear_positions(
+        config.switchgear_rails, base_layout.rails, config.box_id,
+    )
+    if sw_errors:
+        raise HTTPException(
+            status_code=400,
+            detail={"message": "Switchgear layout error", "errors": [e.dict() for e in sw_errors]}
+        )
+
+    cover_data = []
+    for ce in config.cover_elements:
+        cover_data.append({
+            "element_id": ce.element_id,
+            "x": ce.x,
+            "y": ce.y,
+            "label": ce.label,
+        })
+
+    pdf_bytes = generate_pdf(
+        base_config, base_layout,
+        cover_elements=cover_data if cover_data else None,
+        switchgear_positions=sw_positions if sw_positions else None,
+    )
+
+    box = get_box_model_by_id(config.box_id)
+    filename = f"DRV-{box.id.upper()}-SW-001.pdf" if box else "switchgear-drawing.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+# ==================== ORDER HISTORY ====================
+
+def _generate_drawing_number(db: Session) -> str:
+    """Generate unique drawing number DRV-YYYY-XXXX"""
+    year = datetime.now().year
+    last = db.query(Configuration).filter(
+        Configuration.drawing_number.like(f"DRV-{year}-%")
+    ).order_by(Configuration.id.desc()).first()
+    seq = 1
+    if last:
+        try:
+            seq = int(last.drawing_number.split("-")[-1]) + 1
+        except ValueError:
+            pass
+    return f"DRV-{year}-{seq:04d}"
+
+
+@router.post("/orders", response_model=OrderResponse)
+async def create_order(
+    order: OrderCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Save a configuration as an order"""
+    box = get_box_model_by_id(order.box_id)
+    if not box:
+        raise HTTPException(status_code=404, detail=f"Box model '{order.box_id}' not found")
+
+    drawing_number = _generate_drawing_number(db)
+    config = Configuration(
+        user_id=current_user.id,
+        box_id=order.box_id,
+        terminals=order.terminals,
+        holes_top=order.holes_top,
+        holes_bottom=order.holes_bottom,
+        holes_left=order.holes_left,
+        holes_right=order.holes_right,
+        drawing_number=drawing_number,
+        notes=order.notes,
+    )
+    db.add(config)
+    db.commit()
+    db.refresh(config)
+
+    return OrderResponse(
+        id=config.id,
+        drawing_number=config.drawing_number,
+        box_id=config.box_id,
+        terminals=config.terminals,
+        holes_top=config.holes_top,
+        holes_bottom=config.holes_bottom,
+        holes_left=config.holes_left,
+        holes_right=config.holes_right,
+        notes=config.notes,
+        created_at=config.created_at.isoformat() if config.created_at else "",
+        creator_name=current_user.full_name,
+    )
+
+
+@router.get("/orders", response_model=OrderListResponse)
+async def list_orders(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """List orders for the current user"""
+    orders = db.query(Configuration).filter(
+        Configuration.user_id == current_user.id
+    ).order_by(Configuration.created_at.desc()).all()
+
+    items = []
+    for o in orders:
+        items.append(OrderResponse(
+            id=o.id,
+            drawing_number=o.drawing_number,
+            box_id=o.box_id,
+            terminals=o.terminals,
+            holes_top=o.holes_top,
+            holes_bottom=o.holes_bottom,
+            holes_left=o.holes_left,
+            holes_right=o.holes_right,
+            notes=o.notes,
+            created_at=o.created_at.isoformat() if o.created_at else "",
+            creator_name=current_user.full_name,
+        ))
+    return OrderListResponse(orders=items, total=len(items))
+
+
+@router.get("/orders/{order_id}", response_model=OrderResponse)
+async def get_order(
+    order_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get a specific order by ID"""
+    order = db.query(Configuration).filter(
+        Configuration.id == order_id,
+        Configuration.user_id == current_user.id,
+    ).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    return OrderResponse(
+        id=order.id,
+        drawing_number=order.drawing_number,
+        box_id=order.box_id,
+        terminals=order.terminals,
+        holes_top=order.holes_top,
+        holes_bottom=order.holes_bottom,
+        holes_left=order.holes_left,
+        holes_right=order.holes_right,
+        notes=order.notes,
+        created_at=order.created_at.isoformat() if order.created_at else "",
+        creator_name=current_user.full_name,
+    )
+
+
+# ==================== LABEL ====================
+
+@router.post("/generate/label")
+async def generate_label(label: LabelInput):
+    """Generate a panel identification label as PDF"""
+    from app.services.drawing.label_engine import generate_label_pdf
+
+    box = get_box_model_by_id(label.box_id)
+    if not box:
+        raise HTTPException(status_code=404, detail=f"Box model '{label.box_id}' not found")
+
+    pdf_bytes = generate_label_pdf(label, box)
+    filename = f"LABEL-{box.id.upper()}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
     )

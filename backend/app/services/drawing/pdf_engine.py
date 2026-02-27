@@ -799,8 +799,50 @@ def draw_section_bb(
 # INTERNAL LAYOUT VIEW (Top-down, showing rails + terminals)
 # ============================================================
 
+def _draw_switchgear_on_rails(
+    c, ox: float, oy: float, layout, switchgear_positions: list, scale: float
+) -> None:
+    """Draw switchgear components on rails in top-down view."""
+    if not switchgear_positions:
+        return
+    from app.models import get_switchgear_by_id
+
+    sw_colors = {
+        "fuse": colors.Color(0.9, 0.6, 0.2),
+        "mcb": colors.Color(0.3, 0.5, 0.8),
+        "relay": colors.Color(0.6, 0.3, 0.7),
+        "contactor": colors.Color(0.2, 0.6, 0.5),
+        "switch": colors.Color(0.7, 0.7, 0.3),
+        "terminal": colors.Color(0.5, 0.7, 0.5),
+        "surge_protector": colors.Color(0.8, 0.4, 0.4),
+        "timer": colors.Color(0.4, 0.6, 0.8),
+        "power_supply": colors.Color(0.6, 0.6, 0.3),
+    }
+
+    for pos in switchgear_positions:
+        comp = get_switchgear_by_id(pos.component_id)
+        cat = comp.get("category", "") if comp else ""
+        fill = sw_colors.get(cat, colors.Color(0.7, 0.7, 0.7))
+
+        px = ox + pos.x * scale
+        py = oy + pos.y * scale - (pos.height * scale) / 2
+        pw = pos.width * scale
+        ph = pos.height * scale
+
+        c.setFillColor(fill)
+        c.setStrokeColor(colors.black)
+        c.setLineWidth(0.4)
+        c.rect(px, py, pw, ph, fill=1, stroke=1)
+
+        if pos.label:
+            c.setFont("Helvetica", max(3, min(5, pw * 0.6)))
+            c.setFillColor(colors.black)
+            c.drawCentredString(px + pw / 2, py + ph / 2 - 1.5, pos.label[:4])
+
+
 def draw_internal_view(
-    c, ox: float, oy: float, box, config, layout, scale: float
+    c, ox: float, oy: float, box, config, layout, scale: float,
+    switchgear_positions: list | None = None
 ) -> None:
     W = box.internal_width * scale
     L = box.internal_length * scale
@@ -867,6 +909,10 @@ def draw_internal_view(
     for hp in layout.holes_right:
         draw_hole_circle(c, ox + W, oy + hp.position * scale, hole_d_right, scale)
 
+    # Switchgear components on rails
+    if switchgear_positions:
+        _draw_switchgear_on_rails(c, ox, oy, layout, switchgear_positions, scale)
+
     draw_view_label(c, ox + W / 2, oy + L + 10 * mm, "INTERNAL LAYOUT")
 
 
@@ -874,7 +920,7 @@ def draw_internal_view(
 # BOM / PARTS LIST LEGEND
 # ============================================================
 
-def draw_bom(c, x: float, y: float, box, config, layout) -> None:
+def draw_bom(c, x: float, y: float, box, config, layout, switchgear_positions: list | None = None) -> None:
     row_h = 5 * mm
     col_widths = [10 * mm, 10 * mm, 55 * mm, 18 * mm]
     total_w = sum(col_widths)
@@ -920,6 +966,19 @@ def draw_bom(c, x: float, y: float, box, config, layout) -> None:
 
     if hasattr(box, "mounting_plate_x"):
         parts.append((item_no, 1, "Mounting Plate", f"MP-{box.id.upper()}"))
+        item_no += 1
+
+    # Switchgear components
+    if switchgear_positions:
+        from app.models import get_switchgear_by_id
+        sw_counts: dict[str, int] = {}
+        for pos in switchgear_positions:
+            sw_counts[pos.component_id] = sw_counts.get(pos.component_id, 0) + 1
+        for comp_id, qty in sw_counts.items():
+            comp = get_switchgear_by_id(comp_id)
+            if comp:
+                parts.append((item_no, qty, comp["name"][:30], comp_id.upper()))
+                item_no += 1
 
     # Header
     c.setFillColor(colors.Color(0.88, 0.88, 0.88))
@@ -1295,7 +1354,8 @@ def build_page2(c, page_w: float, page_h: float, box, config, layout) -> None:
     draw_title_block(c, page_w, page_h, box, config, 2, 4)
 
 
-def build_page3(c, page_w: float, page_h: float, box, config, layout) -> None:
+def build_page3(c, page_w: float, page_h: float, box, config, layout,
+                switchgear_positions: list | None = None) -> None:
     """Page 3: Section A-A + Section B-B + Internal layout."""
     draw_frame(c, page_w, page_h, 3, 4)
 
@@ -1328,12 +1388,14 @@ def build_page3(c, page_w: float, page_h: float, box, config, layout) -> None:
 
     # Internal layout
     int_ox = bb_ox + bb_w * s + gap * s
-    draw_internal_view(c, int_ox, base_y, box, config, layout, s)
+    draw_internal_view(c, int_ox, base_y, box, config, layout, s,
+                       switchgear_positions=switchgear_positions)
 
     # BOM in top-left area
     bom_x = FRAME_MARGIN + 15 * mm
     bom_y = page_h - FRAME_MARGIN - 20 * mm
-    draw_bom(c, bom_x, bom_y, box, config, layout)
+    draw_bom(c, bom_x, bom_y, box, config, layout,
+             switchgear_positions=switchgear_positions)
 
     draw_title_block(c, page_w, page_h, box, config, 3, 4)
 
@@ -1552,7 +1614,7 @@ def build_page5_cover(c, page_w: float, page_h: float, box, config, cover_elemen
 # MAIN ENTRY POINT
 # ============================================================
 
-def generate_pdf(config, layout, cover_elements=None) -> bytes:
+def generate_pdf(config, layout, cover_elements=None, switchgear_positions=None) -> bytes:
     """
     Generate multi-page A3 landscape technical drawing PDF.
 
@@ -1560,6 +1622,7 @@ def generate_pdf(config, layout, cover_elements=None) -> bytes:
         config: ConfigurationInput with box_id, terminals, holes, etc.
         layout: LayoutResult with rails, holes_top/bottom/left/right.
         cover_elements: Optional list of cover element placements.
+        switchgear_positions: Optional list of SwitchgearPosition objects.
 
     Returns:
         PDF file content as bytes.
@@ -1586,7 +1649,8 @@ def generate_pdf(config, layout, cover_elements=None) -> bytes:
     c.showPage()
 
     # Page 3: Sections + Internal + BOM
-    build_page3(c, page_w, page_h, box, config, layout)
+    build_page3(c, page_w, page_h, box, config, layout,
+                switchgear_positions=switchgear_positions)
     c.showPage()
 
     # Page 4: 3D Isometric

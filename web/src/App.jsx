@@ -75,6 +75,8 @@ function ConfiguratorApp({ user, logout }) {
   const [controllerId, setControllerId] = useState(null);
   const [coverElements, setCoverElements] = useState([]);
   const [coverCatalog, setCoverCatalog] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [showOrders, setShowOrders] = useState(false);
 
   const selectedBox = boxModels.find(b => b.id === selectedBoxId) || boxModels[0];
 
@@ -299,6 +301,84 @@ function ConfiguratorApp({ user, logout }) {
     ));
   };
 
+  // Order management
+  const loadOrders = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE}/orders`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setOrders(data.orders || []);
+      }
+    } catch (e) { /* ignore */ }
+  }, [token]);
+
+  const saveOrder = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE}/orders`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          box_id: selectedBoxId,
+          terminals: config.terminals,
+          holes_top: config.holesTop,
+          holes_bottom: config.holesBottom,
+          holes_left: config.holesLeft,
+          holes_right: config.holesRight,
+        }),
+      });
+      if (res.ok) {
+        await loadOrders();
+        alert('Siparis kaydedildi');
+      }
+    } catch (e) {
+      alert('Siparis kaydedilemedi');
+    }
+  };
+
+  const loadOrderConfig = (order) => {
+    setSelectedBoxId(order.box_id);
+    setConfig({
+      terminals: order.terminals,
+      holesTop: order.holes_top,
+      holesBottom: order.holes_bottom,
+      holesLeft: order.holes_left,
+      holesRight: order.holes_right,
+      holeSizeTop: 'M20',
+      holeSizeBottom: 'M20',
+      holeSizeLeft: 'M20',
+      holeSizeRight: 'M20',
+    });
+    setShowOrders(false);
+  };
+
+  const downloadLabel = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/generate/label`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ box_id: selectedBoxId }),
+      });
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `LABEL-${selectedBoxId.toUpperCase()}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch (e) {
+      alert('Etiket olusturulamadi');
+    }
+  };
+
   const totalHoles = config.holesTop + config.holesBottom + config.holesLeft + config.holesRight;
 
   // BOM data
@@ -465,8 +545,63 @@ function ConfiguratorApp({ user, logout }) {
               </>
             )}
           </button>
+          <button
+            className="toolbar-btn"
+            onClick={downloadLabel}
+            disabled={!validation.is_valid}
+          >
+            <FileText size={16} />
+            Etiket
+          </button>
+          <div style={{borderLeft:'1px solid #555',height:24,margin:'0 4px'}} />
+          <button
+            className="toolbar-btn"
+            onClick={saveOrder}
+            disabled={!validation.is_valid}
+          >
+            <Plus size={16} />
+            Kaydet
+          </button>
+          <button
+            className="toolbar-btn"
+            onClick={() => { loadOrders(); setShowOrders(!showOrders); }}
+          >
+            <Info size={16} />
+            Gecmis
+          </button>
         </div>
       </header>
+
+      {/* Orders Panel */}
+      {showOrders && (
+        <div style={{
+          position:'absolute', top:52, right:12, zIndex:50,
+          background:'#1e293b', border:'1px solid #334155',
+          borderRadius:8, padding:12, width:360, maxHeight:400, overflowY:'auto',
+          boxShadow:'0 4px 12px rgba(0,0,0,0.3)'
+        }}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+            <span style={{fontWeight:600,color:'#e2e8f0'}}>Gecmis Siparisler</span>
+            <button onClick={() => setShowOrders(false)} style={{background:'none',border:'none',color:'#94a3b8',cursor:'pointer'}}>X</button>
+          </div>
+          {orders.length === 0 ? (
+            <p style={{color:'#94a3b8',fontSize:13}}>Henuz siparis yok.</p>
+          ) : (
+            orders.map((o) => (
+              <div key={o.id} onClick={() => loadOrderConfig(o)}
+                style={{
+                  padding:8, marginBottom:6, background:'#0f172a', borderRadius:6,
+                  cursor:'pointer', border:'1px solid #334155',
+                }}>
+                <div style={{fontWeight:500,color:'#e2e8f0',fontSize:13}}>{o.drawing_number}</div>
+                <div style={{color:'#94a3b8',fontSize:11}}>
+                  {o.box_id.toUpperCase()} | {o.terminals}T | {o.holes_top+o.holes_bottom+o.holes_left+o.holes_right}H | {o.created_at.split('T')[0]}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
 
       {/* Left Panel - Configuration */}
       <div className="panel">
