@@ -7,3 +7,4 @@ from .box_models import (
     get_box_model_by_id,
     get_component,
 )
+from .order_model import Order
