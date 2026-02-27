@@ -15,6 +15,7 @@ from app.schemas import (
     GenerateRequest,
     BOMItem,
     BOMResult,
+    LabelInput,
 )
 from app.models import (
     get_all_box_models,
@@ -30,6 +31,7 @@ from app.services import (
     generate_dxf,
     generate_cad_svg_content,
     generate_step,
+    generate_label_pdf,
 )
 
 router = APIRouter()
@@ -301,3 +303,27 @@ async def get_ejc_box_model(box_id: str):
     if not box:
         raise HTTPException(status_code=404, detail=f"EJC box model '{box_id}' not found")
     return box
+
+
+# ==================== LABEL ====================
+
+@router.post("/generate/label")
+async def generate_panel_label(label: LabelInput):
+    """
+    Generate a printable panel label PDF.
+
+    Returns PDF file as download.
+    """
+    try:
+        pdf_bytes = generate_label_pdf(label)
+        safe_order = label.order_no.replace("/", "-").replace(" ", "_")
+        filename = f"ETIKET-{safe_order}.pdf"
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}"
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Label generation failed: {str(e)}")

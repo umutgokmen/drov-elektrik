@@ -128,3 +128,21 @@ class BOMResult(BaseModel):
     """Bill of Materials result"""
     items: List[BOMItem]
     total_items: int
+
+
+class LabelSize(str, Enum):
+    """Available label sizes"""
+    A6 = "A6"
+    A5 = "A5"
+    A4 = "A4"
+
+
+class LabelInput(BaseModel):
+    """Input for panel label PDF generation"""
+    panel_name: str = Field(..., description="Panel name / pano adı")
+    order_no: str = Field(..., description="Order number / sipariş no")
+    project_name: str = Field("", description="Project name / proje adı")
+    customer: str = Field("", description="Customer name / müşteri adı")
+    date: Optional[str] = Field(None, description="Date in DD.MM.YYYY format; defaults to today")
+    notes: str = Field("", description="Additional notes / notlar")
+    label_size: LabelSize = Field(LabelSize.A5, description="Label paper size")

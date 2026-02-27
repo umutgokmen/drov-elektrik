@@ -14,4 +14,6 @@ from .schemas import (
     GenerateRequest,
     BOMItem,
     BOMResult,
+    LabelSize,
+    LabelInput,
 )
