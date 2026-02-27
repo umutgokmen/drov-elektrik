@@ -3,7 +3,7 @@ import {
   Box, Download, FileText, Settings, Layers,
   ZoomIn, ZoomOut, RotateCcw, Maximize2,
   CheckCircle, AlertCircle, AlertTriangle,
-  ChevronDown, ChevronUp, Info
+  ChevronDown, ChevronUp, Info, Tag
 } from 'lucide-react';
 import DrawingCanvas from './components/DrawingCanvas';
 
@@ -230,6 +230,18 @@ function App() {
   const [previewSvg, setPreviewSvg] = useState(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
 
+  // Label State
+  const [labelForm, setLabelForm] = useState({
+    panel_name: '',
+    order_no: '',
+    project_name: '',
+    customer: '',
+    date: '',
+    notes: '',
+    label_size: 'A5',
+  });
+  const [isLabelLoading, setIsLabelLoading] = useState(false);
+
   // 3D Preview Fetch Logic
   const fetch3DModel = useCallback(async () => {
     setIsPreviewLoading(true);
@@ -263,6 +275,35 @@ function App() {
       setPreviewMode('2d');
     } else {
       fetch3DModel();
+    }
+  };
+
+  const handleLabelChange = (field, value) => {
+    setLabelForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const downloadLabel = async () => {
+    if (!labelForm.panel_name || !labelForm.order_no) return;
+    setIsLabelLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/generate/label`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(labelForm)
+      });
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `ETIKET-${labelForm.order_no.replace(/\//g, '-')}.pdf`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error('Label download error', error);
+    } finally {
+      setIsLabelLoading(false);
     }
   };
 
@@ -624,6 +665,107 @@ function App() {
                 <div className="drawing-info-value">{new Date().toLocaleDateString('tr-TR')}</div>
               </div>
             </div>
+          </div>
+
+          {/* Panel Label */}
+          <div className="details-section">
+            <div className="details-section-title">
+              <Tag size={12} style={{ marginRight: 4 }} />
+              Pano Etiketi
+            </div>
+            <div className="form-group">
+              <div className="form-label">Pano Adı *</div>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Örnek: Ana Pano - Kat 1"
+                value={labelForm.panel_name}
+                onChange={(e) => handleLabelChange('panel_name', e.target.value)}
+              />
+            </div>
+            <div className="form-group">
+              <div className="form-label">Sipariş No *</div>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Örnek: 2024/001"
+                value={labelForm.order_no}
+                onChange={(e) => handleLabelChange('order_no', e.target.value)}
+              />
+            </div>
+            <div className="form-group">
+              <div className="form-label">Proje</div>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Proje adı"
+                value={labelForm.project_name}
+                onChange={(e) => handleLabelChange('project_name', e.target.value)}
+              />
+            </div>
+            <div className="form-group">
+              <div className="form-label">Müşteri</div>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Müşteri adı"
+                value={labelForm.customer}
+                onChange={(e) => handleLabelChange('customer', e.target.value)}
+              />
+            </div>
+            <div className="form-group">
+              <div className="form-label">Tarih (GG.AA.YYYY)</div>
+              <input
+                type="text"
+                className="form-input"
+                placeholder={new Date().toLocaleDateString('tr-TR')}
+                value={labelForm.date}
+                onChange={(e) => handleLabelChange('date', e.target.value)}
+              />
+            </div>
+            <div className="form-group">
+              <div className="form-label">Notlar</div>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Opsiyonel notlar"
+                value={labelForm.notes}
+                onChange={(e) => handleLabelChange('notes', e.target.value)}
+              />
+            </div>
+            <div className="form-group">
+              <div className="form-label">Etiket Boyutu</div>
+              <select
+                className="form-select"
+                value={labelForm.label_size}
+                onChange={(e) => handleLabelChange('label_size', e.target.value)}
+              >
+                <option value="A6">A6 (105x148mm)</option>
+                <option value="A5">A5 (148x210mm)</option>
+                <option value="A4">A4 (210x297mm)</option>
+              </select>
+            </div>
+            <button
+              className="toolbar-btn primary"
+              style={{ width: '100%', marginTop: 4, justifyContent: 'center' }}
+              onClick={downloadLabel}
+              disabled={!labelForm.panel_name || !labelForm.order_no || isLabelLoading || apiStatus !== 'connected'}
+              title="Etiket PDF indir"
+            >
+              {isLabelLoading ? (
+                <div className="loading-spinner" />
+              ) : (
+                <>
+                  <Tag size={14} />
+                  Etiket PDF Indir
+                </>
+              )}
+            </button>
+            {apiStatus !== 'connected' && (
+              <div style={{ fontSize: '10px', color: 'var(--accent-warning)', marginTop: 4 }}>
+                API bağlantısı gerekli
+              </div>
+            )}
           </div>
         </div>
       </div>
