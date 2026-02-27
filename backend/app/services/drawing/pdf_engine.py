@@ -32,14 +32,12 @@ from reportlab.pdfgen import canvas as pdf_canvas
 import subprocess
 import os
 
-def create_enclosure_dxf(box, config) -> ezdxf.drawing.Drawing:
+def create_enclosure_dxf(box, config) -> ezdxf.document.Drawing:
     """
     Generate accurate DXF using CadQuery external script
     """
     # 1. Run CadQuery script to generate DXF
     script_path = os.path.join(os.path.dirname(__file__), '../../generate_cad.py')
-    
-    # Pass config as JSON string
     import json
     config_data = json.dumps({
         "width": box.internal_width,
@@ -160,7 +158,7 @@ def draw_cable_gland_iso(msp, center: Tuple[float, float], scale: float):
 # PDF GENERATION WITH MATPLOTLIB BACKEND
 # ============================================================
 
-def render_dxf_to_pdf(doc: ezdxf.drawing.Drawing) -> bytes:
+def render_dxf_to_pdf(doc: ezdxf.document.Drawing) -> bytes:
     """Render DXF to PDF using matplotlib"""
     fig = plt.figure(figsize=(11.69, 8.27), dpi=150)  # A4 landscape
     ax = fig.add_axes([0.05, 0.05, 0.9, 0.9])
@@ -285,20 +283,24 @@ def draw_parts_list_professional(c, x, y, config, box):
     row_h = 4.5 * mm
     col_widths = [8*mm, 8*mm, 50*mm]
     total_w = sum(col_widths)
+    # Maximum characters that fit in the part-name column
+    MAX_PART_NAME_LENGTH = 28
+    MAX_PART_NAME_WITH_MARKER = MAX_PART_NAME_LENGTH - 1  # Reserve one char for '*' suffix
     
     total_holes = config.holes_top + config.holes_bottom + config.holes_left + config.holes_right
     
+    # (item_no, qty, part_code, is_salt_malzeme)
     parts = [
-        (1, 1, f"CMP_{box.id.upper()}W1RA5"),
-        (2, 1, f"07-0168-{box.id.upper()}01/2"),
-        (3, box.rail_count, "NS_35_15_PERF_200MM-select"),
-        (4, config.terminals, "Box_3044029_22_00_UT-2.5_3D"),
-        (5, 2, "pnl_302203_CLIPFIX-35-5"),
-        (6, total_holes, "pnl_3047028_D-UT-2.5-10_3D"),
-        (7, 1, "Drain_Valve_M20x1.5mm"),
-        (8, total_holes, "CMP_20E1FW1RA5"),
+        (1, 1, f"CMP_{box.id.upper()}W1RA5", False),
+        (2, 1, f"07-0168-{box.id.upper()}01/2", True),
+        (3, box.rail_count, "NS_35_15_PERF_200MM-select", False),
+        (4, config.terminals, "Box_3044029_22_00_UT-2.5_3D", False),
+        (5, 2, "pnl_302203_CLIPFIX-35-5", True),
+        (6, total_holes, "pnl_3047028_D-UT-2.5-10_3D", False),
+        (7, 1, "Drain_Valve_M20x1.5mm", True),
+        (8, total_holes, "CMP_20E1FW1RA5", False),
     ]
-    parts = [(i, q, n) for i, q, n in parts if q > 0]
+    parts = [(i, q, n, sm) for i, q, n, sm in parts if q > 0]
     
     # Header
     c.setFillColor(colors.Color(0.9, 0.9, 0.9))
@@ -327,12 +329,18 @@ def draw_parts_list_professional(c, x, y, config, box):
     
     # Data
     c.setFont('Helvetica', 5)
-    for idx, (item, qty, name) in enumerate(parts):
+    for idx, (item, qty, name, is_salt_malzeme) in enumerate(parts):
         row_y = header_y - (idx + 1) * row_h
-        c.rect(x, row_y, total_w, row_h, fill=0, stroke=1)
+        if is_salt_malzeme:
+            c.setFillColor(colors.Color(0.96, 0.94, 1.0))
+            c.rect(x, row_y, total_w, row_h, fill=1, stroke=1)
+            c.setFillColor(colors.black)
+        else:
+            c.rect(x, row_y, total_w, row_h, fill=0, stroke=1)
         c.drawCentredString(x + col_widths[0]/2, row_y + 1.5, str(item))
         c.drawCentredString(x + col_widths[0] + col_widths[1]/2, row_y + 1.5, str(qty))
-        c.drawString(x + col_widths[0] + col_widths[1] + 1.5, row_y + 1.5, name[:28])
+        display_name = (name[:MAX_PART_NAME_WITH_MARKER] + "*") if is_salt_malzeme else name[:MAX_PART_NAME_LENGTH]
+        c.drawString(x + col_widths[0] + col_widths[1] + 1.5, row_y + 1.5, display_name)
 
 
 def draw_isometric_view(c, x, y, box, config):
@@ -348,7 +356,8 @@ def draw_isometric_view(c, x, y, box, config):
         import json
         
         # script_path = os.path.join(os.path.dirname(__file__), '../../generate_cad.py')
-        script_path = "/Users/wazder/Documents/GitHub/Drov/backend/generate_cad.py"
+        _backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        script_path = os.path.join(_backend_dir, "generate_cad.py")
         config_data = json.dumps({
             "width": box.internal_width,
             "length": box.internal_length,
@@ -696,8 +705,21 @@ def draw_section_bb_professional(c, x, y, box, config):
     c.setFillColor(colors.black)
     c.drawString(x, y + H + 4, "B-B (1:4)")
     
+    # Drain valve indicator (salt malzeme - bottom left corner)
+    drain_x = x + wall + 5
+    drain_y = y + wall + 5
+    drain_r = 3.5
+    c.setStrokeColor(colors.Color(0.55, 0.37, 0.76))
+    c.setFillColor(colors.Color(0.55, 0.37, 0.76, 0.15))
+    c.setLineWidth(0.75)
+    c.circle(drain_x, drain_y, drain_r, fill=1, stroke=1)
+    c.setFont('Helvetica', 5)
+    c.setFillColor(colors.Color(0.55, 0.37, 0.76))
+    c.drawString(drain_x + drain_r + 1, drain_y - 2, "DV")
+    
     # Section markers
     c.setFont('Helvetica-Bold', 12)
+    c.setFillColor(colors.black)
     c.drawCentredString(x - 10, y + H/2 - 3, "B")
     c.drawCentredString(x + W + 10, y + H/2 - 3, "B")
 

@@ -168,6 +168,37 @@ function App() {
     }
   };
 
+  const downloadSTEP = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/generate/step`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          box_id: selectedBoxId,
+          terminals: config.terminals,
+          holes_top: config.holesTop,
+          holes_bottom: config.holesBottom,
+          holes_left: config.holesLeft,
+          holes_right: config.holesRight
+        })
+      });
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `DRV-${selectedBoxId.toUpperCase()}-001.step`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error('STEP download error', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Input handlers
   const handleInputChange = (field, value) => {
     let numValue = parseInt(value) || 0;
@@ -185,10 +216,13 @@ function App() {
 
   // BOM data
   const bomItems = [
-    { name: `${selectedBox.name} Enclosure`, code: `P+F-${selectedBox.id.toUpperCase()}`, qty: 1 },
-    { name: 'NS 35 DIN Rail', code: 'NS35-DIN', qty: selectedBox.rail_count },
-    { name: 'UT 2,5 Terminal Block', code: 'PHX-UT2.5', qty: config.terminals },
-    { name: 'M20 Cable Gland', code: 'M20-GL', qty: totalHoles },
+    { name: `${selectedBox.name} Enclosure`, code: `P+F-${selectedBox.id.toUpperCase()}`, qty: 1, isSaltMalzeme: false },
+    { name: 'NS 35 DIN Rail', code: 'NS35-DIN', qty: selectedBox.rail_count, isSaltMalzeme: false },
+    { name: 'UT 2,5 Terminal Block', code: 'PHX-UT2.5', qty: config.terminals, isSaltMalzeme: false },
+    { name: 'M20 Cable Gland', code: 'M20-GL', qty: totalHoles, isSaltMalzeme: false },
+    { name: 'EJB Cover', code: 'EJB-COVER', qty: 1, isSaltMalzeme: true },
+    { name: 'CLIPFIX 35/5 End Clamp', code: 'pnl_302203_CLIPFIX-35-5', qty: 2, isSaltMalzeme: true },
+    { name: 'Drain Valve M20x1.5', code: 'Drain_Valve_M20x1.5mm', qty: 1, isSaltMalzeme: true },
   ].filter(item => item.qty > 0);
 
   // Preview State
@@ -320,6 +354,14 @@ function App() {
           >
             <Layers size={16} />
             DXF
+          </button>
+          <button
+            className="toolbar-btn"
+            onClick={downloadSTEP}
+            disabled={!validation.is_valid || isLoading}
+          >
+            <Box size={16} />
+            STEP
           </button>
           <button
             className="toolbar-btn primary"
@@ -550,14 +592,15 @@ function App() {
               </thead>
               <tbody>
                 {bomItems.map((item, i) => (
-                  <tr key={i}>
-                    <td>{item.name}</td>
+                  <tr key={i} style={item.isSaltMalzeme ? { opacity: 0.75, fontStyle: 'italic' } : {}}>
+                    <td>{item.name}{item.isSaltMalzeme && <span title="Standard salt malzeme item" style={{ marginLeft: 4, fontSize: 9, color: '#8b5cf6' }}>*</span>}</td>
                     <td style={{ fontFamily: 'var(--font-mono)', fontSize: '10px' }}>{item.code}</td>
                     <td>{item.qty}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            <div style={{ fontSize: '9px', color: '#94a3b8', marginTop: '4px' }}>* Standard salt malzeme (always included)</div>
           </div>
 
           {/* Drawing Info */}

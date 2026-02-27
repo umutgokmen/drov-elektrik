@@ -15,13 +15,14 @@ from app.schemas import (
     BOMItem,
     BOMResult,
 )
-from app.models import get_all_box_models, get_box_model_by_id
+from app.models import get_all_box_models, get_box_model_by_id, SALT_MALZEME_COMPONENTS
 from app.services import (
     run_full_validation,
     calculate_full_layout,
     generate_pdf,
     generate_dxf,
     generate_cad_svg_content,
+    generate_step,
 )
 
 router = APIRouter()
@@ -183,6 +184,7 @@ async def generate_preview(config: ConfigurationInput):
 async def generate_bom(config: ConfigurationInput):
     """
     Generate Bill of Materials for a configuration.
+    Includes both user-configured components and standard salt malzeme items.
     """
     box = get_box_model_by_id(config.box_id)
     if not box:
@@ -230,5 +232,48 @@ async def generate_bom(config: ConfigurationInput):
             part_code="M20-GL",
             quantity=total_holes
         ))
+        item_no += 1
+    
+    # Salt malzeme (standard) components
+    for component in SALT_MALZEME_COMPONENTS:
+        items.append(BOMItem(
+            item_no=item_no,
+            part_name=component["part_name"],
+            part_code=component["part_code"],
+            quantity=component["quantity"],
+            is_salt_malzeme=True
+        ))
+        item_no += 1
     
     return BOMResult(items=items, total_items=len(items))
+
+
+@router.post("/generate/step")
+async def generate_step_model(config: ConfigurationInput):
+    """
+    Generate a STEP 3D model for the given configuration.
+
+    Returns STEP file as download.
+    """
+    validation = run_full_validation(config)
+    if not validation.is_valid:
+        raise HTTPException(
+            status_code=400,
+            detail={"message": "Invalid configuration", "errors": [e.dict() for e in validation.errors]}
+        )
+
+    try:
+        step_bytes = generate_step(config)
+
+        box = get_box_model_by_id(config.box_id)
+        filename = f"DRV-{box.id.upper()}-001.step" if box else "model.step"
+
+        return Response(
+            content=step_bytes,
+            media_type="application/step",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}"
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"STEP generation failed: {str(e)}")

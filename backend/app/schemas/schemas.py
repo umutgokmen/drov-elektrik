@@ -110,6 +110,7 @@ class BOMItem(BaseModel):
     part_name: str
     part_code: str
     quantity: int
+    is_salt_malzeme: bool = False
 
 
 class BOMResult(BaseModel):

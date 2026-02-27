@@ -147,6 +147,28 @@ COMPONENTS = {
     }
 }
 
+# Salt malzeme (standard/fixed) components included with every EJB enclosure
+SALT_MALZEME_COMPONENTS = [
+    {
+        "part_name": "EJB Cover",
+        "part_code": "EJB-COVER",
+        "quantity": 1,
+        "description": "Enclosure cover/lid"
+    },
+    {
+        "part_name": "CLIPFIX 35/5 End Clamp",
+        "part_code": "pnl_302203_CLIPFIX-35-5",
+        "quantity": 2,
+        "description": "DIN rail end clamp (2 per rail end)"
+    },
+    {
+        "part_name": "Drain Valve M20x1.5",
+        "part_code": "Drain_Valve_M20x1.5mm",
+        "quantity": 1,
+        "description": "Condensate drain valve M20x1.5mm"
+    },
+]
+
 
 def get_all_box_models() -> List[BoxModel]:
     """Get all available box models"""

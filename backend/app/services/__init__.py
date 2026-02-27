@@ -5,4 +5,4 @@ from .geometry_service import (
     calculate_full_layout,
 )
 from .validation import run_full_validation
-from .drawing import generate_pdf, generate_dxf, generate_cad_svg_content
+from .drawing import generate_pdf, generate_dxf, generate_cad_svg_content, generate_step
