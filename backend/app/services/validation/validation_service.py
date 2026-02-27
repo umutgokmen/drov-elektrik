@@ -12,35 +12,58 @@ from app.schemas import (
 from app.models import COMPONENTS, get_box_model_by_id
 
 
-# Engineering constants
+# Engineering constants - EJB series
 HOLE_DIAMETER = COMPONENTS["HOLE_M20"]["diameter"]
 MIN_HOLE_CLEARANCE = COMPONENTS["HOLE_M20"]["clearance"]
 MIN_EDGE_MARGIN = 15  # 15mm from box edge
 TERMINAL_WIDTH = COMPONENTS["TERMINAL_2_5"]["width"]
 RAIL_MARGIN = 20  # 20mm from each side of the rail
 
+# Engineering constants - EJBX series (explosion-proof, larger sealing margins required)
+MIN_EJBX_HOLE_CLEARANCE = 25  # 25mm between holes
+MIN_EJBX_EDGE_MARGIN = 25     # 25mm from box edge
 
-def validate_hole_placement(hole_count: int, side_length: float) -> Tuple[bool, str, int]:
+
+def _get_hole_clearance_for_box(box_id: str) -> int:
+    """Return the hole-to-hole clearance for the given box type."""
+    if box_id.startswith("ejbx"):
+        return MIN_EJBX_HOLE_CLEARANCE
+    return MIN_HOLE_CLEARANCE
+
+
+def _get_edge_margin_for_box(box_id: str) -> int:
+    """Return the edge margin for the given box type."""
+    if box_id.startswith("ejbx"):
+        return MIN_EJBX_EDGE_MARGIN
+    return MIN_EDGE_MARGIN
+
+
+def validate_hole_placement(
+    hole_count: int,
+    side_length: float,
+    hole_clearance: int = MIN_HOLE_CLEARANCE,
+    edge_margin: int = MIN_EDGE_MARGIN,
+) -> Tuple[bool, str, int]:
     """
     Validates if the requested number of holes can physically fit on a side.
-    
+
     Returns:
         Tuple of (is_valid, error_message, max_possible)
     """
     if hole_count == 0:
         return True, "", 0
-    
-    available_length = side_length - (2 * MIN_EDGE_MARGIN)
-    space_per_hole = HOLE_DIAMETER + MIN_HOLE_CLEARANCE
-    max_possible = int((available_length + MIN_HOLE_CLEARANCE) / space_per_hole)
-    
+
+    available_length = side_length - (2 * edge_margin)
+    space_per_hole = HOLE_DIAMETER + hole_clearance
+    max_possible = int((available_length + hole_clearance) / space_per_hole)
+
     if hole_count > max_possible:
         return (
             False,
             f"Fiziksel olarak en fazla {max_possible} adet M20 delik sığar. (Kenar: {side_length}mm)",
             max_possible
         )
-    
+
     return True, "", max_possible
 
 
@@ -88,6 +111,10 @@ def run_full_validation(config: ConfigurationInput) -> ValidationResult:
             warnings=[]
         )
     
+    # Determine hole clearance and edge margin based on box type
+    hole_clearance = _get_hole_clearance_for_box(config.box_id)
+    edge_margin = _get_edge_margin_for_box(config.box_id)
+
     # Hole validations
     hole_validations = [
         ("holes_top", config.holes_top, box.internal_width),
@@ -95,9 +122,11 @@ def run_full_validation(config: ConfigurationInput) -> ValidationResult:
         ("holes_left", config.holes_left, box.internal_length),
         ("holes_right", config.holes_right, box.internal_length),
     ]
-    
+
     for field, count, length in hole_validations:
-        is_valid, message, max_possible = validate_hole_placement(count, length)
+        is_valid, message, max_possible = validate_hole_placement(
+            count, length, hole_clearance, edge_margin
+        )
         if not is_valid:
             errors.append(ValidationError(field=field, message=message, max_possible=max_possible))
     
