@@ -114,6 +114,59 @@ export const BOX_MODELS = [
     }
 ];
 
+// ESX series stainless steel enclosures
+// Dimensions are representative placeholders - to be updated from customer STEP files
+export const ESX_MODELS = [
+    {
+        id: "esx15",
+        name: "ESX 15",
+        internalLength: 150,
+        internalWidth: 150,
+        internalDepth: 80,
+        mountingPlate: { x: 130, y: 130 },
+        maxHolesLong: 4,
+        maxHolesShort: 4,
+        railCount: 1,
+        maxTerminals: 16
+    },
+    {
+        id: "esx20",
+        name: "ESX 20",
+        internalLength: 200,
+        internalWidth: 200,
+        internalDepth: 100,
+        mountingPlate: { x: 180, y: 180 },
+        maxHolesLong: 6,
+        maxHolesShort: 6,
+        railCount: 1,
+        maxTerminals: 24
+    },
+    {
+        id: "esx30",
+        name: "ESX 30",
+        internalLength: 300,
+        internalWidth: 250,
+        internalDepth: 150,
+        mountingPlate: { x: 280, y: 230 },
+        maxHolesLong: 8,
+        maxHolesShort: 6,
+        railCount: 2,
+        maxTerminals: 40
+    },
+    {
+        id: "esx40",
+        name: "ESX 40",
+        internalLength: 400,
+        internalWidth: 300,
+        internalDepth: 200,
+        mountingPlate: { x: 380, y: 280 },
+        maxHolesLong: 10,
+        maxHolesShort: 8,
+        railCount: 2,
+        maxTerminals: 56
+    },
+];
+
 export const COMPONENTS = {
     TERMINAL_2_5: {
         name: "UT 2,5 Terminal",

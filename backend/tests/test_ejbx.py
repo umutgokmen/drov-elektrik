@@ -126,10 +126,10 @@ class TestEJBXValidationRules:
         # so the max-possible calculation is always exercised.
         large_count = 999
         _, _, ejb_max = validate_hole_placement(
-            large_count, side_length, MIN_HOLE_CLEARANCE, MIN_EDGE_MARGIN
+            large_count, side_length, hole_clearance=MIN_HOLE_CLEARANCE, edge_margin=MIN_EDGE_MARGIN
         )
         _, _, ejbx_max = validate_hole_placement(
-            large_count, side_length, MIN_EJBX_HOLE_CLEARANCE, MIN_EJBX_EDGE_MARGIN
+            large_count, side_length, hole_clearance=MIN_EJBX_HOLE_CLEARANCE, edge_margin=MIN_EJBX_EDGE_MARGIN
         )
         assert ejbx_max < ejb_max
 

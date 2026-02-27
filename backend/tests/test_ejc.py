@@ -179,8 +179,8 @@ class TestEJCHoleRules:
         for the same side length due to tighter tolerances.
         """
         side_length = 200.0
-        _, _, max_ejb = validate_hole_placement(1, side_length, ejc=False)
-        _, _, max_ejc = validate_hole_placement(1, side_length, ejc=True)
+        _, _, max_ejb = validate_hole_placement(1, side_length, "ejb21")
+        _, _, max_ejc = validate_hole_placement(1, side_length, "ejc01")
         assert max_ejc <= max_ejb, (
             "EJC should allow equal or fewer holes than EJB on the same side"
         )
@@ -190,7 +190,7 @@ class TestEJCHoleRules:
         A very small side length should result in 0 max holes under EJC rules.
         """
         tiny_side = EJC_MIN_EDGE_MARGIN * 2  # no space for even one hole
-        is_valid, _, max_possible = validate_hole_placement(1, tiny_side, ejc=True)
+        is_valid, _, max_possible = validate_hole_placement(1, tiny_side, "ejc01")
         assert not is_valid or max_possible == 0
 
 

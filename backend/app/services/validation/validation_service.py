@@ -29,6 +29,14 @@ RAIL_MARGIN = 20  # 20mm from each side of the rail
 MIN_EJBX_HOLE_CLEARANCE = 25  # 25mm between holes
 MIN_EJBX_EDGE_MARGIN = 25     # 25mm from box edge
 
+# Engineering constants - ESP series (compact, tighter tolerances)
+MIN_ESP_HOLE_CLEARANCE = 4    # 4mm between holes
+MIN_ESP_EDGE_MARGIN = 12      # 12mm from box edge
+
+# Engineering constants - ESX series (stainless steel, tighter tolerances)
+MIN_ESX_HOLE_CLEARANCE = 8    # 8mm between holes
+MIN_ESX_EDGE_MARGIN = 20      # 20mm from box edge
+
 
 def _get_hole_clearance_for_box(box_id: str) -> int:
     """Return the hole-to-hole clearance for the given box type."""
@@ -36,6 +44,10 @@ def _get_hole_clearance_for_box(box_id: str) -> int:
         return MIN_EJBX_HOLE_CLEARANCE
     if box_id.lower().startswith("ejc"):
         return EJC_MIN_HOLE_CLEARANCE
+    if box_id.startswith("esp"):
+        return MIN_ESP_HOLE_CLEARANCE
+    if box_id.startswith("esx"):
+        return MIN_ESX_HOLE_CLEARANCE
     return MIN_HOLE_CLEARANCE
 
 
@@ -45,6 +57,10 @@ def _get_edge_margin_for_box(box_id: str) -> int:
         return MIN_EJBX_EDGE_MARGIN
     if box_id.lower().startswith("ejc"):
         return EJC_MIN_EDGE_MARGIN
+    if box_id.startswith("esp"):
+        return MIN_ESP_EDGE_MARGIN
+    if box_id.startswith("esx"):
+        return MIN_ESX_EDGE_MARGIN
     return MIN_EDGE_MARGIN
 
 
@@ -56,17 +72,25 @@ def _is_ejc(box_id: str) -> bool:
 def validate_hole_placement(
     hole_count: int,
     side_length: float,
+    box_id: str = "",
     hole_clearance: int = MIN_HOLE_CLEARANCE,
     edge_margin: int = MIN_EDGE_MARGIN,
 ) -> Tuple[bool, str, int]:
     """
     Validates if the requested number of holes can physically fit on a side.
 
+    When box_id is provided, series-specific rules are applied automatically.
+    The hole_clearance and edge_margin parameters are used only when box_id is empty.
+
     Returns:
         Tuple of (is_valid, error_message, max_possible)
     """
     if hole_count == 0:
         return True, "", 0
+
+    if box_id:
+        hole_clearance = _get_hole_clearance_for_box(box_id)
+        edge_margin = _get_edge_margin_for_box(box_id)
 
     available_length = side_length - (2 * edge_margin)
     space_per_hole = HOLE_DIAMETER + hole_clearance
@@ -147,7 +171,7 @@ def run_full_validation(config: ConfigurationInput) -> ValidationResult:
 
     for field, count, length in hole_validations:
         is_valid, message, max_possible = validate_hole_placement(
-            count, length, hole_clearance, edge_margin
+            count, length, config.box_id
         )
         if not is_valid:
             errors.append(ValidationError(field=field, message=message, max_possible=max_possible))

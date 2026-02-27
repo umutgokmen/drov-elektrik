@@ -1,5 +1,5 @@
 """
-Box model data - Engineering constants for EJB, EJBX, and EJC Series
+Box model data - Engineering constants for EJB, EJBX, ESP, ESA, ESX, and EJC Series
 All units are in millimeters (mm)
 """
 from typing import Dict, List, Optional
@@ -125,34 +125,79 @@ _EJB_MODELS_DATA: List[Dict] = [
         "rail_count": 3,
         "max_terminals": 140
     },
-    # ESP Series
+]
+
+# ESP series - dimensions are estimated pending customer STEP file delivery (issue #23)
+ESP_MODELS_DATA: List[Dict] = [
     {
         "id": "esp1",
         "name": "ESP 1",
-        "internal_length": 200,
-        "internal_width": 200,
-        "internal_depth": 130,
-        "mounting_plate_x": 220,
-        "mounting_plate_y": 150,
-        "max_holes_long": 8,
-        "max_holes_short": 8,
+        "internal_length": 120,
+        "internal_width": 80,
+        "internal_depth": 60,
+        "mounting_plate_x": 100,
+        "mounting_plate_y": 60,
+        "max_holes_long": 3,
+        "max_holes_short": 2,
         "rail_count": 1,
-        "max_terminals": 20
+        "max_terminals": 7
     },
     {
         "id": "esp2",
         "name": "ESP 2",
-        "internal_length": 300,
-        "internal_width": 250,
-        "internal_depth": 160,
-        "mounting_plate_x": 320,
-        "mounting_plate_y": 200,
-        "max_holes_long": 14,
-        "max_holes_short": 12,
+        "internal_length": 150,
+        "internal_width": 100,
+        "internal_depth": 80,
+        "mounting_plate_x": 130,
+        "mounting_plate_y": 80,
+        "max_holes_long": 4,
+        "max_holes_short": 3,
         "rail_count": 1,
+        "max_terminals": 11
+    },
+    {
+        "id": "esp3",
+        "name": "ESP 3",
+        "internal_length": 200,
+        "internal_width": 150,
+        "internal_depth": 100,
+        "mounting_plate_x": 180,
+        "mounting_plate_y": 110,
+        "max_holes_long": 7,
+        "max_holes_short": 5,
+        "rail_count": 1,
+        "max_terminals": 21
+    },
+    {
+        "id": "esp4",
+        "name": "ESP 4",
+        "internal_length": 300,
+        "internal_width": 200,
+        "internal_depth": 120,
+        "mounting_plate_x": 280,
+        "mounting_plate_y": 160,
+        "max_holes_long": 11,
+        "max_holes_short": 7,
+        "rail_count": 2,
         "max_terminals": 40
     },
-    # ESA Series
+    {
+        "id": "esp5",
+        "name": "ESP 5",
+        "internal_length": 400,
+        "internal_width": 300,
+        "internal_depth": 150,
+        "mounting_plate_x": 380,
+        "mounting_plate_y": 240,
+        "max_holes_long": 15,
+        "max_holes_short": 11,
+        "rail_count": 2,
+        "max_terminals": 60
+    },
+]
+
+# ESA series - dimensions are engineering estimates pending customer STEP files (issue #24)
+ESA_MODELS_DATA: List[Dict] = [
     {
         "id": "esa1",
         "name": "ESA 1",
@@ -179,7 +224,62 @@ _EJB_MODELS_DATA: List[Dict] = [
         "rail_count": 2,
         "max_terminals": 70
     },
-    # ESX Series
+    {
+        "id": "esa3",
+        "name": "ESA 3",
+        "internal_length": 250,
+        "internal_width": 200,
+        "internal_depth": 150,
+        "mounting_plate_x": 270,
+        "mounting_plate_y": 220,
+        "max_holes_long": 18,
+        "max_holes_short": 12,
+        "rail_count": 1,
+        "max_terminals": 28
+    },
+    {
+        "id": "esa4",
+        "name": "ESA 4",
+        "internal_length": 350,
+        "internal_width": 300,
+        "internal_depth": 200,
+        "mounting_plate_x": 370,
+        "mounting_plate_y": 320,
+        "max_holes_long": 24,
+        "max_holes_short": 20,
+        "rail_count": 2,
+        "max_terminals": 52
+    },
+    {
+        "id": "esa5",
+        "name": "ESA 5",
+        "internal_length": 450,
+        "internal_width": 400,
+        "internal_depth": 250,
+        "mounting_plate_x": 470,
+        "mounting_plate_y": 420,
+        "max_holes_long": 32,
+        "max_holes_short": 28,
+        "rail_count": 2,
+        "max_terminals": 76
+    },
+    {
+        "id": "esa6",
+        "name": "ESA 6",
+        "internal_length": 550,
+        "internal_width": 450,
+        "internal_depth": 300,
+        "mounting_plate_x": 570,
+        "mounting_plate_y": 470,
+        "max_holes_long": 42,
+        "max_holes_short": 32,
+        "rail_count": 3,
+        "max_terminals": 96
+    },
+]
+
+# ESX series stainless steel - dimensions are placeholder pending customer STEP files (issue #25)
+ESX_MODELS_DATA: List[Dict] = [
     {
         "id": "esx1",
         "name": "ESX 1",
@@ -206,63 +306,61 @@ _EJB_MODELS_DATA: List[Dict] = [
         "rail_count": 3,
         "max_terminals": 90
     },
-    # EJBX Series
     {
-        "id": "ejbx1",
-        "name": "EJBX 1",
-        "internal_length": 450,
-        "internal_width": 430,
-        "internal_depth": 300,
-        "mounting_plate_x": 500,
-        "mounting_plate_y": 320,
-        "max_holes_long": 28,
-        "max_holes_short": 24,
-        "rail_count": 2,
-        "max_terminals": 80
+        "id": "esx15",
+        "name": "ESX 15",
+        "internal_length": 150,
+        "internal_width": 150,
+        "internal_depth": 80,
+        "mounting_plate_x": 130,
+        "mounting_plate_y": 130,
+        "max_holes_long": 4,
+        "max_holes_short": 4,
+        "rail_count": 1,
+        "max_terminals": 16
     },
     {
-        "id": "ejbx2",
-        "name": "EJBX 2",
-        "internal_length": 600,
-        "internal_width": 550,
-        "internal_depth": 380,
-        "mounting_plate_x": 650,
-        "mounting_plate_y": 400,
-        "max_holes_long": 42,
-        "max_holes_short": 34,
-        "rail_count": 3,
-        "max_terminals": 120
+        "id": "esx20",
+        "name": "ESX 20",
+        "internal_length": 200,
+        "internal_width": 200,
+        "internal_depth": 100,
+        "mounting_plate_x": 180,
+        "mounting_plate_y": 180,
+        "max_holes_long": 6,
+        "max_holes_short": 6,
+        "rail_count": 1,
+        "max_terminals": 24
     },
-    # EJC Series
     {
-        "id": "ejc1",
-        "name": "EJC 1",
-        "internal_length": 250,
-        "internal_width": 240,
+        "id": "esx30",
+        "name": "ESX 30",
+        "internal_length": 300,
+        "internal_width": 250,
         "internal_depth": 150,
         "mounting_plate_x": 280,
-        "mounting_plate_y": 180,
-        "max_holes_long": 12,
-        "max_holes_short": 10,
-        "rail_count": 1,
-        "max_terminals": 35
+        "mounting_plate_y": 230,
+        "max_holes_long": 8,
+        "max_holes_short": 6,
+        "rail_count": 2,
+        "max_terminals": 40
     },
     {
-        "id": "ejc2",
-        "name": "EJC 2",
-        "internal_length": 350,
-        "internal_width": 320,
-        "internal_depth": 190,
-        "mounting_plate_x": 390,
-        "mounting_plate_y": 240,
-        "max_holes_long": 18,
-        "max_holes_short": 16,
+        "id": "esx40",
+        "name": "ESX 40",
+        "internal_length": 400,
+        "internal_width": 300,
+        "internal_depth": 200,
+        "mounting_plate_x": 380,
+        "mounting_plate_y": 280,
+        "max_holes_long": 10,
+        "max_holes_short": 8,
         "rail_count": 2,
-        "max_terminals": 60
-    }
+        "max_terminals": 56
+    },
 ]
 
-# EJBX series model data (dimensions are placeholders pending customer STEP files)
+# EJBX series model data (dimensions are placeholders pending customer STEP files, issue #26)
 EJBX_MODELS_DATA: List[Dict] = [
     {
         "id": "ejbx1",
@@ -318,7 +416,7 @@ EJBX_MODELS_DATA: List[Dict] = [
     },
 ]
 
-BOX_MODELS_DATA = _EJB_MODELS_DATA + EJBX_MODELS_DATA
+BOX_MODELS_DATA = _EJB_MODELS_DATA + ESP_MODELS_DATA + ESA_MODELS_DATA + ESX_MODELS_DATA + EJBX_MODELS_DATA
 
 # Component specifications
 COMPONENTS = {
@@ -361,6 +459,26 @@ SALT_MALZEME_COMPONENTS = [
         "description": "Condensate drain valve M20x1.5mm"
     },
 ]
+
+# Series-specific engineering limits for ESP (tighter than EJB due to smaller body)
+ESP_HOLE_RULES = {
+    "min_edge_margin": 12,    # mm from box edge
+    "min_hole_clearance": 4,  # mm between holes
+    "hole_diameter": 20,      # M20 standard
+}
+
+EJB_HOLE_RULES = {
+    "min_edge_margin": 15,
+    "min_hole_clearance": 5,
+    "hole_diameter": 20,
+}
+
+
+def get_hole_rules(box_id: str) -> dict:
+    """Return series-specific hole rules for a given box ID."""
+    if box_id.startswith("esp"):
+        return ESP_HOLE_RULES
+    return EJB_HOLE_RULES
 
 
 def get_all_box_models() -> List[BoxModel]:

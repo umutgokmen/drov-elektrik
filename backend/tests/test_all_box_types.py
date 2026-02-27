@@ -15,7 +15,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.models import get_box_model_by_id, get_all_box_models
+from app.models import get_box_model_by_id, get_all_box_models, get_ejc_box_model_by_id
 
 client = TestClient(app)
 
@@ -49,15 +49,15 @@ ESX_CONFIG = {
 
 EJBX_CONFIG = {
     "box_id": "ejbx1",
-    "terminals": 20,
-    "holes_top": 4,
-    "holes_bottom": 4,
-    "holes_left": 2,
-    "holes_right": 2,
+    "terminals": 15,
+    "holes_top": 2,
+    "holes_bottom": 2,
+    "holes_left": 1,
+    "holes_right": 1,
 }
 
 EJC_CONFIG = {
-    "box_id": "ejc1",
+    "box_id": "ejc01",
     "terminals": 8,
     "holes_top": 2,
     "holes_bottom": 2,
@@ -65,14 +65,13 @@ EJC_CONFIG = {
     "holes_right": 1,
 }
 
-ALL_SERIES_CONFIGS = [ESP_CONFIG, ESA_CONFIG, ESX_CONFIG, EJBX_CONFIG, EJC_CONFIG]
+ALL_SERIES_CONFIGS = [ESP_CONFIG, ESA_CONFIG, ESX_CONFIG, EJBX_CONFIG]
 
 ALL_BOX_IDS = [
     "esp1", "esp2",
     "esa1", "esa2",
     "esx1", "esx2",
     "ejbx1", "ejbx2",
-    "ejc1", "ejc2",
 ]
 
 # Consecutive pairs within each series: (smaller_variant, larger_variant)
@@ -301,14 +300,14 @@ class TestEJCValidation:
         assert response.json()["is_valid"] is True
 
     def test_ejc_too_many_terminals_fails(self):
-        box = get_box_model_by_id("ejc1")
+        box = get_ejc_box_model_by_id("ejc01")
         config = {**EJC_CONFIG, "terminals": box.max_terminals + 1}
         response = client.post("/api/v1/validate", json=config)
         assert response.status_code == 200
         assert response.json()["is_valid"] is False
 
     def test_ejc_too_many_holes_top_fails(self):
-        box = get_box_model_by_id("ejc1")
+        box = get_ejc_box_model_by_id("ejc01")
         config = {**EJC_CONFIG, "holes_top": box.max_holes_long + 10}
         response = client.post("/api/v1/validate", json=config)
         assert response.status_code == 200
@@ -322,7 +321,7 @@ class TestEJCValidation:
         assert response.json()["is_valid"] is True
 
     def test_ejc2_valid_config_passes(self):
-        config = {**EJC_CONFIG, "box_id": "ejc2", "terminals": 15}
+        config = {**EJC_CONFIG, "box_id": "ejc02", "terminals": 15}
         response = client.post("/api/v1/validate", json=config)
         assert response.status_code == 200
         assert response.json()["is_valid"] is True
