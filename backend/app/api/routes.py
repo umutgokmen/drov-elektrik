@@ -7,6 +7,7 @@ import io
 
 from app.schemas import (
     BoxModel,
+    EJCBoxModel,
     ConfigurationInput,
     ValidationResult,
     LayoutResult,
@@ -15,7 +16,13 @@ from app.schemas import (
     BOMItem,
     BOMResult,
 )
-from app.models import get_all_box_models, get_box_model_by_id, SALT_MALZEME_COMPONENTS
+from app.models import (
+    get_all_box_models,
+    get_box_model_by_id,
+    SALT_MALZEME_COMPONENTS,
+    get_all_ejc_box_models,
+    get_ejc_box_model_by_id,
+)
 from app.services import (
     run_full_validation,
     calculate_full_layout,
@@ -277,3 +284,20 @@ async def generate_step_model(config: ConfigurationInput):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"STEP generation failed: {str(e)}")
+
+
+# ==================== EJC BOX MODELS ====================
+
+@router.get("/ejc/boxes", response_model=list[EJCBoxModel])
+async def list_ejc_box_models():
+    """Get all available EJC box models"""
+    return get_all_ejc_box_models()
+
+
+@router.get("/ejc/boxes/{box_id}", response_model=EJCBoxModel)
+async def get_ejc_box_model(box_id: str):
+    """Get a specific EJC box model by ID"""
+    box = get_ejc_box_model_by_id(box_id)
+    if not box:
+        raise HTTPException(status_code=404, detail=f"EJC box model '{box_id}' not found")
+    return box

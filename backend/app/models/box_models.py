@@ -1,9 +1,9 @@
 """
-Box model data - Engineering constants for EJB and EJBX Series
+Box model data - Engineering constants for EJB, EJBX, and EJC Series
 All units are in millimeters (mm)
 """
 from typing import Dict, List, Optional
-from app.schemas import BoxModel
+from app.schemas import BoxModel, EJCBoxModel
 
 
 # Static box model data (will be moved to database later)
@@ -244,3 +244,87 @@ def get_box_model_by_id(box_id: str) -> Optional[BoxModel]:
 def get_component(component_name: str) -> Optional[Dict]:
     """Get component specifications"""
     return COMPONENTS.get(component_name)
+
+
+# EJC-specific hole drilling constants (tighter tolerances than EJB)
+EJC_MIN_EDGE_MARGIN = 20       # 20mm from box edge (EJC has thicker walls)
+EJC_MIN_HOLE_CLEARANCE = 8     # 8mm minimum gap between holes on EJC
+EJC_MAX_HOLE_DIAMETER = 25     # M25 max for EJC series
+
+# EJC box model data
+# Dimensions are placeholders pending customer-supplied STEP files (see issue #27 blocker)
+EJC_BOX_MODELS_DATA: List[Dict] = [
+    {
+        "id": "ejc01",
+        "name": "EJC 01",
+        "internal_length": 150,
+        "internal_width": 150,
+        "internal_depth": 80,
+        "mounting_plate_x": 160,
+        "mounting_plate_y": 160,
+        "max_holes_long": 4,
+        "max_holes_short": 4,
+        "rail_count": 1,
+        "max_terminals": 16,
+        "ip_rating": "IP66",
+        "has_earth_plate": True,
+    },
+    {
+        "id": "ejc02",
+        "name": "EJC 02",
+        "internal_length": 200,
+        "internal_width": 150,
+        "internal_depth": 80,
+        "mounting_plate_x": 210,
+        "mounting_plate_y": 160,
+        "max_holes_long": 6,
+        "max_holes_short": 4,
+        "rail_count": 1,
+        "max_terminals": 24,
+        "ip_rating": "IP66",
+        "has_earth_plate": True,
+    },
+    {
+        "id": "ejc03",
+        "name": "EJC 03",
+        "internal_length": 200,
+        "internal_width": 200,
+        "internal_depth": 100,
+        "mounting_plate_x": 210,
+        "mounting_plate_y": 210,
+        "max_holes_long": 6,
+        "max_holes_short": 6,
+        "rail_count": 1,
+        "max_terminals": 30,
+        "ip_rating": "IP66",
+        "has_earth_plate": True,
+    },
+    {
+        "id": "ejc04",
+        "name": "EJC 04",
+        "internal_length": 300,
+        "internal_width": 200,
+        "internal_depth": 120,
+        "mounting_plate_x": 310,
+        "mounting_plate_y": 210,
+        "max_holes_long": 10,
+        "max_holes_short": 6,
+        "rail_count": 2,
+        "max_terminals": 50,
+        "ip_rating": "IP66",
+        "has_earth_plate": True,
+    },
+]
+
+
+def get_all_ejc_box_models() -> List[EJCBoxModel]:
+    """Get all available EJC box models"""
+    return [EJCBoxModel(**data) for data in EJC_BOX_MODELS_DATA]
+
+
+def get_ejc_box_model_by_id(box_id: str) -> Optional[EJCBoxModel]:
+    """Get a specific EJC box model by ID"""
+    for data in EJC_BOX_MODELS_DATA:
+        if data["id"] == box_id:
+            return EJCBoxModel(**data)
+    return None
