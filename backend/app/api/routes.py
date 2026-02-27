@@ -4,6 +4,9 @@ API Routes - Main router for all endpoints
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response, StreamingResponse
 import io
+import os
+import json
+import subprocess
 
 from app.schemas import (
     BoxModel,
@@ -14,15 +17,31 @@ from app.schemas import (
     GenerateRequest,
     BOMItem,
     BOMResult,
+    SwitchgearConfigurationInput,
+    CoverElementPlacement,
 )
-from app.models import get_all_box_models, get_box_model_by_id
+from app.models import (
+    get_all_box_models,
+    get_box_model_by_id,
+    HOLE_SIZES,
+    get_all_switchgear,
+    get_switchgear_by_id,
+    get_switchgear_by_category,
+    get_all_cover_elements,
+    get_cover_element_by_id,
+    get_cover_elements_by_category,
+)
 from app.services import (
     run_full_validation,
     calculate_full_layout,
     generate_pdf,
     generate_dxf,
     generate_cad_svg_content,
+    validate_cover_elements,
+    calculate_switchgear_positions,
+    auto_distribute_components,
 )
+from app.schemas import SwitchgearLayoutResult
 
 router = APIRouter()
 
@@ -42,6 +61,12 @@ async def get_box_model(box_id: str):
     if not box:
         raise HTTPException(status_code=404, detail=f"Box model '{box_id}' not found")
     return box
+
+
+@router.get("/hole-sizes")
+async def list_hole_sizes():
+    """Get available hole sizes"""
+    return HOLE_SIZES
 
 
 # ==================== VALIDATION ====================
@@ -155,6 +180,75 @@ async def generate_dxf_drawing(config: ConfigurationInput):
         raise HTTPException(status_code=500, detail=f"DXF generation failed: {str(e)}")
 
 
+@router.post("/generate/step")
+async def generate_step_drawing(config: ConfigurationInput):
+    """
+    Generate a STEP file via CadQuery subprocess.
+    Returns the .step file as a download.
+    """
+    validation = run_full_validation(config)
+    if not validation.is_valid:
+        raise HTTPException(
+            status_code=400,
+            detail={"message": "Invalid configuration", "errors": [e.dict() for e in validation.errors]}
+        )
+
+    box = get_box_model_by_id(config.box_id)
+    if not box:
+        raise HTTPException(status_code=404, detail=f"Box model '{config.box_id}' not found")
+
+    script_path = os.path.join(os.path.dirname(__file__), "../../generate_cad.py")
+    if not os.path.exists(script_path):
+        script_path = os.path.expanduser("~/Documents/GitHub/Drov/backend/generate_cad.py")
+    if not os.path.exists(script_path):
+        raise HTTPException(status_code=500, detail="CadQuery script not found")
+
+    conda_python = os.path.expanduser("~/miniconda3/envs/cadquery/bin/python")
+    if not os.path.exists(conda_python):
+        raise HTTPException(status_code=500, detail="CadQuery environment not found")
+
+    config_data = json.dumps({
+        "width": box.internal_width,
+        "length": box.internal_length,
+        "depth": box.internal_depth,
+        "holes_bottom": config.holes_bottom,
+        "holes_top": config.holes_top,
+        "output_format": "step",
+    })
+
+    my_env = os.environ.copy()
+    my_env.pop("PYTHONPATH", None)
+
+    try:
+        subprocess.run(
+            [conda_python, script_path, config_data],
+            check=True,
+            capture_output=True,
+            cwd=os.path.dirname(script_path),
+            env=my_env,
+            timeout=60,
+        )
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(status_code=500, detail=f"STEP generation failed: {e.stderr.decode()[:200]}")
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=500, detail="STEP generation timed out")
+
+    step_path = os.path.join(os.path.dirname(script_path), "cad_output.step")
+    if not os.path.exists(step_path):
+        raise HTTPException(status_code=500, detail="STEP output file not found")
+
+    with open(step_path, "rb") as f:
+        step_bytes = f.read()
+
+    filename = f"DRV-{box.id.upper()}-001.step"
+
+    return Response(
+        content=step_bytes,
+        media_type="application/step",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+
 @router.post("/generate/preview")
 async def generate_preview(config: ConfigurationInput):
     """
@@ -232,3 +326,124 @@ async def generate_bom(config: ConfigurationInput):
         ))
     
     return BOMResult(items=items, total_items=len(items))
+
+
+# ==================== SWITCHGEAR CATALOG ====================
+
+@router.get("/switchgear")
+async def list_switchgear(category: str | None = None):
+    """Get available switchgear components, optionally filtered by category"""
+    if category:
+        return get_switchgear_by_category(category)
+    return get_all_switchgear()
+
+
+@router.get("/switchgear/{component_id}")
+async def get_switchgear(component_id: str):
+    """Get a specific switchgear component by ID"""
+    component = get_switchgear_by_id(component_id)
+    if not component:
+        raise HTTPException(status_code=404, detail=f"Switchgear '{component_id}' not found")
+    return component
+
+
+# ==================== COVER ELEMENTS CATALOG ====================
+
+@router.get("/cover-elements")
+async def list_cover_elements(category: str | None = None):
+    """Get available cover elements, optionally filtered by category"""
+    if category:
+        return get_cover_elements_by_category(category)
+    return get_all_cover_elements()
+
+
+@router.get("/cover-elements/{element_id}")
+async def get_cover_element(element_id: str):
+    """Get a specific cover element by ID"""
+    element = get_cover_element_by_id(element_id)
+    if not element:
+        raise HTTPException(status_code=404, detail=f"Cover element '{element_id}' not found")
+    return element
+
+
+# ==================== EXTENDED VALIDATION ====================
+
+@router.post("/validate/cover-elements", response_model=ValidationResult)
+async def validate_cover(config: SwitchgearConfigurationInput):
+    """Validate cover element placements for collisions and boundary violations"""
+    errors, warnings = validate_cover_elements(config.cover_elements, config.box_id)
+    return ValidationResult(
+        is_valid=len(errors) == 0,
+        errors=errors,
+        warnings=warnings,
+    )
+
+
+# ==================== SWITCHGEAR LAYOUT ====================
+
+@router.post("/switchgear/layout", response_model=SwitchgearLayoutResult)
+async def calculate_switchgear_layout(config: SwitchgearConfigurationInput):
+    """
+    Calculate complete layout including switchgear positions.
+    Returns base layout + switchgear positions + cover element positions.
+    """
+    # First validate the base config
+    base_config = ConfigurationInput(
+        box_id=config.box_id,
+        terminals=config.terminals,
+        holes_top=config.holes_top,
+        holes_bottom=config.holes_bottom,
+        holes_left=config.holes_left,
+        holes_right=config.holes_right,
+        holes_top_spec=config.holes_top_spec,
+        holes_bottom_spec=config.holes_bottom_spec,
+        holes_left_spec=config.holes_left_spec,
+        holes_right_spec=config.holes_right_spec,
+    )
+    validation = run_full_validation(base_config)
+    if not validation.is_valid:
+        raise HTTPException(
+            status_code=400,
+            detail={"message": "Invalid configuration", "errors": [e.dict() for e in validation.errors]}
+        )
+
+    base_layout = calculate_full_layout(base_config)
+
+    # Calculate switchgear positions
+    sw_positions, sw_errors, sw_warnings = calculate_switchgear_positions(
+        config.switchgear_rails,
+        base_layout.rails,
+        config.box_id,
+    )
+    if sw_errors:
+        raise HTTPException(
+            status_code=400,
+            detail={"message": "Switchgear layout error", "errors": [e.dict() for e in sw_errors]}
+        )
+
+    # Resolve cover element positions
+    cover_positions = []
+    for ce in config.cover_elements:
+        from app.models import get_cover_element_by_id
+        elem = get_cover_element_by_id(ce.element_id)
+        if elem:
+            from app.schemas import CoverElementPosition
+            cover_positions.append(CoverElementPosition(
+                element_id=ce.element_id,
+                x=ce.x,
+                y=ce.y,
+                cutout_diameter=elem.get("cutout_diameter"),
+                cutout_width=elem.get("cutout_width"),
+                cutout_height=elem.get("cutout_height"),
+                label=ce.label,
+            ))
+
+    return SwitchgearLayoutResult(
+        rails=base_layout.rails,
+        holes_top=base_layout.holes_top,
+        holes_bottom=base_layout.holes_bottom,
+        holes_left=base_layout.holes_left,
+        holes_right=base_layout.holes_right,
+        switchgear_positions=sw_positions,
+        cover_element_positions=cover_positions,
+    )
