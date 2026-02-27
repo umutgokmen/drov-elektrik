@@ -1,12 +1,15 @@
 """
 API Routes - Main router for all endpoints
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response, StreamingResponse
+from sqlalchemy.orm import Session
 import io
+import re
 
 from app.schemas import (
     BoxModel,
+    EJCBoxModel,
     ConfigurationInput,
     ValidationResult,
     LayoutResult,
@@ -14,8 +17,19 @@ from app.schemas import (
     GenerateRequest,
     BOMItem,
     BOMResult,
+    LabelInput,
+    OrderCreate,
+    OrderResponse,
 )
-from app.models import get_all_box_models, get_box_model_by_id, SALT_MALZEME_COMPONENTS
+from app.models import (
+    get_all_box_models,
+    get_box_model_by_id,
+    SALT_MALZEME_COMPONENTS,
+    get_all_ejc_box_models,
+    get_ejc_box_model_by_id,
+    Order,
+)
+from app.core.database import get_db
 from app.services import (
     run_full_validation,
     calculate_full_layout,
@@ -23,6 +37,7 @@ from app.services import (
     generate_dxf,
     generate_cad_svg_content,
     generate_step,
+    generate_label_pdf,
 )
 
 router = APIRouter()
@@ -277,3 +292,94 @@ async def generate_step_model(config: ConfigurationInput):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"STEP generation failed: {str(e)}")
+
+
+# ==================== EJC BOX MODELS ====================
+
+@router.get("/ejc/boxes", response_model=list[EJCBoxModel])
+async def list_ejc_box_models():
+    """Get all available EJC box models"""
+    return get_all_ejc_box_models()
+
+
+@router.get("/ejc/boxes/{box_id}", response_model=EJCBoxModel)
+async def get_ejc_box_model(box_id: str):
+    """Get a specific EJC box model by ID"""
+    box = get_ejc_box_model_by_id(box_id)
+    if not box:
+        raise HTTPException(status_code=404, detail=f"EJC box model '{box_id}' not found")
+    return box
+
+
+# ==================== LABEL ====================
+
+@router.post("/generate/label")
+async def generate_panel_label(label: LabelInput):
+    """
+    Generate a printable panel label PDF.
+
+    Returns PDF file as download.
+    """
+    try:
+        pdf_bytes = generate_label_pdf(label)
+        safe_order = re.sub(r"[^\w\-]", "_", label.order_no)
+        filename = f"ETIKET-{safe_order}.pdf"
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}"
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Label generation failed: {str(e)}")
+
+
+# ==================== ORDERS ====================
+
+@router.post("/orders", response_model=OrderResponse, status_code=201)
+def save_order(order_in: OrderCreate, db: Session = Depends(get_db)):
+    """
+    Save a configuration as an order record in the database.
+
+    Returns the created order with its assigned ID.
+    """
+    box = get_box_model_by_id(order_in.box_id)
+    if not box:
+        raise HTTPException(status_code=404, detail=f"Box model '{order_in.box_id}' not found")
+
+    order = Order(
+        name=order_in.name,
+        box_id=order_in.box_id,
+        terminals=order_in.terminals,
+        holes_top=order_in.holes_top,
+        holes_bottom=order_in.holes_bottom,
+        holes_left=order_in.holes_left,
+        holes_right=order_in.holes_right,
+    )
+    db.add(order)
+    db.commit()
+    db.refresh(order)
+    return order
+
+
+@router.get("/orders", response_model=list[OrderResponse])
+def list_orders(db: Session = Depends(get_db)):
+    """
+    Return all saved orders, newest first.
+    """
+    return db.query(Order).order_by(Order.created_at.desc()).all()
+
+
+@router.get("/orders/{order_id}", response_model=OrderResponse)
+def get_order(order_id: int, db: Session = Depends(get_db)):
+    """
+    Return a single saved order by ID.
+
+    The returned configuration fields can be used to reload the configurator
+    state or generate PDF/DXF/STEP outputs.
+    """
+    order = db.get(Order, order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail=f"Order '{order_id}' not found")
+    return order

@@ -1,18 +1,31 @@
 """
 Drov Industrial Backend - Main Application
 """
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import router as api_router
 from app.core.config import settings
+from app.core.database import Base, engine
+import app.models  # noqa: F401 - ensure all models are registered before create_all
+
+
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    """Create database tables on startup."""
+    Base.metadata.create_all(bind=engine)
+    yield
+
 
 app = FastAPI(
     title="Drov Engineering API",
     description="Industrial-grade engineering configurator backend",
     version="1.0.0",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 # CORS for frontend

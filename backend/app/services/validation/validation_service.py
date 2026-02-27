@@ -9,38 +9,100 @@ from app.schemas import (
     ValidationError,
     ValidationWarning,
 )
-from app.models import COMPONENTS, get_box_model_by_id
+from app.models import (
+    COMPONENTS,
+    get_box_model_by_id,
+    EJC_MIN_EDGE_MARGIN,
+    EJC_MIN_HOLE_CLEARANCE,
+    get_ejc_box_model_by_id,
+)
 
 
-# Engineering constants
+# Engineering constants - EJB series
 HOLE_DIAMETER = COMPONENTS["HOLE_M20"]["diameter"]
 MIN_HOLE_CLEARANCE = COMPONENTS["HOLE_M20"]["clearance"]
 MIN_EDGE_MARGIN = 15  # 15mm from box edge
 TERMINAL_WIDTH = COMPONENTS["TERMINAL_2_5"]["width"]
 RAIL_MARGIN = 20  # 20mm from each side of the rail
 
+# Engineering constants - EJBX series (explosion-proof, larger sealing margins required)
+MIN_EJBX_HOLE_CLEARANCE = 25  # 25mm between holes
+MIN_EJBX_EDGE_MARGIN = 25     # 25mm from box edge
 
-def validate_hole_placement(hole_count: int, side_length: float) -> Tuple[bool, str, int]:
+# Engineering constants - ESP series (compact, tighter tolerances)
+MIN_ESP_HOLE_CLEARANCE = 4    # 4mm between holes
+MIN_ESP_EDGE_MARGIN = 12      # 12mm from box edge
+
+# Engineering constants - ESX series (stainless steel, tighter tolerances)
+MIN_ESX_HOLE_CLEARANCE = 8    # 8mm between holes
+MIN_ESX_EDGE_MARGIN = 20      # 20mm from box edge
+
+
+def _get_hole_clearance_for_box(box_id: str) -> int:
+    """Return the hole-to-hole clearance for the given box type."""
+    if box_id.startswith("ejbx"):
+        return MIN_EJBX_HOLE_CLEARANCE
+    if box_id.lower().startswith("ejc"):
+        return EJC_MIN_HOLE_CLEARANCE
+    if box_id.startswith("esp"):
+        return MIN_ESP_HOLE_CLEARANCE
+    if box_id.startswith("esx"):
+        return MIN_ESX_HOLE_CLEARANCE
+    return MIN_HOLE_CLEARANCE
+
+
+def _get_edge_margin_for_box(box_id: str) -> int:
+    """Return the edge margin for the given box type."""
+    if box_id.startswith("ejbx"):
+        return MIN_EJBX_EDGE_MARGIN
+    if box_id.lower().startswith("ejc"):
+        return EJC_MIN_EDGE_MARGIN
+    if box_id.startswith("esp"):
+        return MIN_ESP_EDGE_MARGIN
+    if box_id.startswith("esx"):
+        return MIN_ESX_EDGE_MARGIN
+    return MIN_EDGE_MARGIN
+
+
+def _is_ejc(box_id: str) -> bool:
+    """Return True if the box ID belongs to the EJC series."""
+    return box_id.lower().startswith("ejc")
+
+
+def validate_hole_placement(
+    hole_count: int,
+    side_length: float,
+    box_id: str = "",
+    hole_clearance: int = MIN_HOLE_CLEARANCE,
+    edge_margin: int = MIN_EDGE_MARGIN,
+) -> Tuple[bool, str, int]:
     """
     Validates if the requested number of holes can physically fit on a side.
-    
+
+    When box_id is provided, series-specific rules are applied automatically.
+    The hole_clearance and edge_margin parameters are used only when box_id is empty.
+
     Returns:
         Tuple of (is_valid, error_message, max_possible)
     """
     if hole_count == 0:
         return True, "", 0
-    
-    available_length = side_length - (2 * MIN_EDGE_MARGIN)
-    space_per_hole = HOLE_DIAMETER + MIN_HOLE_CLEARANCE
-    max_possible = int((available_length + MIN_HOLE_CLEARANCE) / space_per_hole)
-    
+
+    if box_id:
+        hole_clearance = _get_hole_clearance_for_box(box_id)
+        edge_margin = _get_edge_margin_for_box(box_id)
+
+    available_length = side_length - (2 * edge_margin)
+    space_per_hole = HOLE_DIAMETER + hole_clearance
+    max_possible = int((available_length + hole_clearance) / space_per_hole)
+
     if hole_count > max_possible:
         return (
             False,
             f"Fiziksel olarak en fazla {max_possible} adet M20 delik sığar. (Kenar: {side_length}mm)",
             max_possible
         )
-    
+
     return True, "", max_possible
 
 
@@ -75,12 +137,19 @@ def validate_terminal_placement(terminal_count: int, box: BoxModel) -> Tuple[boo
 def run_full_validation(config: ConfigurationInput) -> ValidationResult:
     """
     Runs all validations and returns a complete result.
+    Supports both EJB and EJC box types.
     """
     errors: List[ValidationError] = []
     warnings: List[ValidationWarning] = []
-    
-    # Get box model
-    box = get_box_model_by_id(config.box_id)
+
+    ejc = _is_ejc(config.box_id)
+
+    # Resolve box model (EJC or EJB)
+    if ejc:
+        box = get_ejc_box_model_by_id(config.box_id)
+    else:
+        box = get_box_model_by_id(config.box_id)
+
     if not box:
         return ValidationResult(
             is_valid=False,
@@ -88,6 +157,10 @@ def run_full_validation(config: ConfigurationInput) -> ValidationResult:
             warnings=[]
         )
     
+    # Determine hole clearance and edge margin based on box type
+    hole_clearance = _get_hole_clearance_for_box(config.box_id)
+    edge_margin = _get_edge_margin_for_box(config.box_id)
+
     # Hole validations
     hole_validations = [
         ("holes_top", config.holes_top, box.internal_width),
@@ -95,9 +168,11 @@ def run_full_validation(config: ConfigurationInput) -> ValidationResult:
         ("holes_left", config.holes_left, box.internal_length),
         ("holes_right", config.holes_right, box.internal_length),
     ]
-    
+
     for field, count, length in hole_validations:
-        is_valid, message, max_possible = validate_hole_placement(count, length)
+        is_valid, message, max_possible = validate_hole_placement(
+            count, length, config.box_id
+        )
         if not is_valid:
             errors.append(ValidationError(field=field, message=message, max_possible=max_possible))
     
@@ -115,7 +190,7 @@ def run_full_validation(config: ConfigurationInput) -> ValidationResult:
     
     total_holes = config.holes_top + config.holes_bottom + config.holes_left + config.holes_right
     max_total_holes = box.max_holes_long * 2 + box.max_holes_short * 2
-    if total_holes > max_total_holes * 0.9:
+    if max_total_holes > 0 and total_holes > max_total_holes * 0.9:
         warnings.append(ValidationWarning(
             field="holes",
             message="Toplam delik kapasitesinin %90'ına yaklaştınız."
