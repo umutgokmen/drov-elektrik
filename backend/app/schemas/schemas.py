@@ -28,6 +28,17 @@ class BoxModel(BoxModelBase):
         from_attributes = True
 
 
+class EJCBoxModel(BoxModelBase):
+    """EJC series box model with additional EJC-specific properties"""
+    mounting_plate_x: float
+    mounting_plate_y: float
+    ip_rating: str = Field("IP66", description="Ingress protection rating")
+    has_earth_plate: bool = Field(False, description="Whether the model includes an earth bonding plate")
+
+    class Config:
+        from_attributes = True
+
+
 class ConfigurationInput(BaseModel):
     """User configuration input"""
     box_id: str = Field(..., description="Box model ID (e.g., 'ejb21')")

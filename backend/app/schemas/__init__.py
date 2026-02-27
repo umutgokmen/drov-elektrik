@@ -2,6 +2,7 @@
 from .schemas import (
     BoxModel,
     BoxModelBase,
+    EJCBoxModel,
     ConfigurationInput,
     ValidationError,
     ValidationWarning,

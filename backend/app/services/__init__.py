@@ -6,3 +6,4 @@ from .geometry_service import (
 )
 from .validation import run_full_validation
 from .drawing import generate_pdf, generate_dxf, generate_cad_svg_content, generate_step
+from .step_parser import extract_dimensions_from_step, extract_dimensions_from_step_file
