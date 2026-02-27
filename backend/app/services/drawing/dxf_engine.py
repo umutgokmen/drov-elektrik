@@ -40,17 +40,17 @@ class DXFDrawingEngine:
         
         # Draw components
         self._draw_enclosure(msp, box)
+        self._draw_mounting_plate(msp, box)
         self._draw_rails(msp, layout, box)
         self._draw_terminals(msp, layout, box)
         self._draw_holes(msp, layout, box)
         self._draw_dimensions(msp, box)
         self._draw_title_block(msp, config, box)
         
-        # Write to bytes
-        buffer = io.BytesIO()
-        doc.write(buffer)
-        buffer.seek(0)
-        return buffer.getvalue()
+        # ezdxf requires a text stream for ASCII DXF output
+        text_buffer = io.StringIO()
+        doc.write(text_buffer)
+        return doc.encode(text_buffer.getvalue())
     
     def _setup_layers(self, doc):
         """Create standard CAD layers"""
@@ -88,6 +88,30 @@ class DXFDrawingEngine:
             dxfattribs={'layer': 'ENCLOSURE', 'lineweight': 25}
         )
     
+    def _draw_mounting_plate(self, msp, box):
+        """Draw mounting plate outline"""
+        mp_w = getattr(box, 'mounting_plate_x', None)
+        mp_h = getattr(box, 'mounting_plate_y', None)
+        if not mp_w or not mp_h:
+            return
+
+        x_off = (box.internal_width - mp_w) / 2
+        y_off = (box.internal_length - mp_h) / 2
+
+        msp.add_lwpolyline(
+            [(x_off, y_off), (x_off + mp_w, y_off),
+             (x_off + mp_w, y_off + mp_h),
+             (x_off, y_off + mp_h), (x_off, y_off)],
+            dxfattribs={'layer': 'ENCLOSURE', 'lineweight': 18,
+                        'linetype': 'DASHED'}
+        )
+
+        # Corner screw holes
+        screw_r = 2.5
+        for dx, dy in [(8, 8), (mp_w - 8, 8), (8, mp_h - 8), (mp_w - 8, mp_h - 8)]:
+            msp.add_circle((x_off + dx, y_off + dy), screw_r,
+                           dxfattribs={'layer': 'ENCLOSURE'})
+
     def _draw_rails(self, msp, layout: LayoutResult, box):
         """Draw DIN rails"""
         rail_height = 35  # NS 35 standard height
