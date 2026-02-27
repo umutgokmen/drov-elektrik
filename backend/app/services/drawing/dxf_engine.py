@@ -47,10 +47,10 @@ class DXFDrawingEngine:
         self._draw_title_block(msp, config, box)
         
         # Write to bytes
-        buffer = io.BytesIO()
+        buffer = io.StringIO()
         doc.write(buffer)
         buffer.seek(0)
-        return buffer.getvalue()
+        return buffer.getvalue().encode('utf-8')
     
     def _setup_layers(self, doc):
         """Create standard CAD layers"""

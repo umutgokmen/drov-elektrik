@@ -314,14 +314,20 @@ const DrawingCanvas = ({ box, config }) => {
             </g>
 
             {/* Legend */}
-            <g transform={`translate(${margin}, ${canvasHeight - 50})`}>
-                <rect x="0" y="0" width="140" height="40" fill="#f8fafc" stroke="#e2e8f0" strokeWidth="1" rx="4" />
+            <g transform={`translate(${margin}, ${canvasHeight - 70})`}>
+                <rect x="0" y="0" width="200" height="62" fill="#f8fafc" stroke="#e2e8f0" strokeWidth="1" rx="4" />
                 <circle cx="15" cy="12" r="4" fill="none" stroke="#ef4444" strokeWidth="1.5" />
                 <text x="25" y="15" fontSize="9" fill="#475569">M20 Cable Entry</text>
                 <rect x="8" y="24" width="14" height="8" fill="#a3e635" stroke="#65a30d" strokeWidth="0.5" rx="1" />
                 <text x="25" y="31" fontSize="9" fill="#475569">UT 2,5 Terminal</text>
                 <rect x="80" y="8" width="20" height="6" fill="#e2e8f0" stroke="#94a3b8" strokeWidth="0.5" />
                 <text x="105" y="15" fontSize="9" fill="#475569">DIN Rail</text>
+                {/* Salt malzeme components */}
+                <circle cx="90" cy="30" r="4" fill="none" stroke="#8b5cf6" strokeWidth="1.5" strokeDasharray="2,1" />
+                <text x="100" y="33" fontSize="9" fill="#475569">Drain Valve</text>
+                <rect x="85" y="43" width="10" height="6" fill="none" stroke="#f59e0b" strokeWidth="1" />
+                <text x="100" y="49" fontSize="9" fill="#475569">End Clamp</text>
+                <text x="3" y="58" fontSize="8" fill="#94a3b8" fontStyle="italic">* Drain valve &amp; end clamps: standard items</text>
             </g>
 
             {/* Drawing number */}
