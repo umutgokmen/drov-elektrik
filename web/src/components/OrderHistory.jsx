@@ -17,7 +17,7 @@ export default function OrderHistory({ orders, boxModels, onLoad, onClose }) {
   };
 
   const formatDate = (isoString) => {
-    return new Date(isoString).toLocaleString(navigator.language, {
+    return new Date(isoString).toLocaleString(navigator.language || 'tr-TR', {
       dateStyle: 'short',
       timeStyle: 'short',
     });

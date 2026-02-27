@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response, StreamingResponse
 from sqlalchemy.orm import Session
 import io
+import re
 
 from app.schemas import (
     BoxModel,
@@ -321,7 +322,7 @@ async def generate_panel_label(label: LabelInput):
     """
     try:
         pdf_bytes = generate_label_pdf(label)
-        safe_order = label.order_no.replace("/", "-").replace(" ", "_")
+        safe_order = re.sub(r"[^\w\-]", "_", label.order_no)
         filename = f"ETIKET-{safe_order}.pdf"
         return Response(
             content=pdf_bytes,
