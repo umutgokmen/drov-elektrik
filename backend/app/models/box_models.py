@@ -124,6 +124,141 @@ BOX_MODELS_DATA: List[Dict] = [
         "max_holes_short": 30,
         "rail_count": 3,
         "max_terminals": 140
+    },
+    # ESP Series
+    {
+        "id": "esp1",
+        "name": "ESP 1",
+        "internal_length": 200,
+        "internal_width": 200,
+        "internal_depth": 130,
+        "mounting_plate_x": 220,
+        "mounting_plate_y": 150,
+        "max_holes_long": 8,
+        "max_holes_short": 8,
+        "rail_count": 1,
+        "max_terminals": 20
+    },
+    {
+        "id": "esp2",
+        "name": "ESP 2",
+        "internal_length": 300,
+        "internal_width": 250,
+        "internal_depth": 160,
+        "mounting_plate_x": 320,
+        "mounting_plate_y": 200,
+        "max_holes_long": 14,
+        "max_holes_short": 12,
+        "rail_count": 1,
+        "max_terminals": 40
+    },
+    # ESA Series
+    {
+        "id": "esa1",
+        "name": "ESA 1",
+        "internal_length": 300,
+        "internal_width": 300,
+        "internal_depth": 180,
+        "mounting_plate_x": 340,
+        "mounting_plate_y": 220,
+        "max_holes_long": 14,
+        "max_holes_short": 14,
+        "rail_count": 2,
+        "max_terminals": 50
+    },
+    {
+        "id": "esa2",
+        "name": "ESA 2",
+        "internal_length": 400,
+        "internal_width": 350,
+        "internal_depth": 200,
+        "mounting_plate_x": 440,
+        "mounting_plate_y": 260,
+        "max_holes_long": 22,
+        "max_holes_short": 18,
+        "rail_count": 2,
+        "max_terminals": 70
+    },
+    # ESX Series
+    {
+        "id": "esx1",
+        "name": "ESX 1",
+        "internal_length": 400,
+        "internal_width": 400,
+        "internal_depth": 220,
+        "mounting_plate_x": 440,
+        "mounting_plate_y": 280,
+        "max_holes_long": 22,
+        "max_holes_short": 22,
+        "rail_count": 2,
+        "max_terminals": 60
+    },
+    {
+        "id": "esx2",
+        "name": "ESX 2",
+        "internal_length": 500,
+        "internal_width": 450,
+        "internal_depth": 250,
+        "mounting_plate_x": 550,
+        "mounting_plate_y": 320,
+        "max_holes_long": 30,
+        "max_holes_short": 26,
+        "rail_count": 3,
+        "max_terminals": 90
+    },
+    # EJBX Series
+    {
+        "id": "ejbx1",
+        "name": "EJBX 1",
+        "internal_length": 450,
+        "internal_width": 430,
+        "internal_depth": 300,
+        "mounting_plate_x": 500,
+        "mounting_plate_y": 320,
+        "max_holes_long": 28,
+        "max_holes_short": 24,
+        "rail_count": 2,
+        "max_terminals": 80
+    },
+    {
+        "id": "ejbx2",
+        "name": "EJBX 2",
+        "internal_length": 600,
+        "internal_width": 550,
+        "internal_depth": 380,
+        "mounting_plate_x": 650,
+        "mounting_plate_y": 400,
+        "max_holes_long": 42,
+        "max_holes_short": 34,
+        "rail_count": 3,
+        "max_terminals": 120
+    },
+    # EJC Series
+    {
+        "id": "ejc1",
+        "name": "EJC 1",
+        "internal_length": 250,
+        "internal_width": 240,
+        "internal_depth": 150,
+        "mounting_plate_x": 280,
+        "mounting_plate_y": 180,
+        "max_holes_long": 12,
+        "max_holes_short": 10,
+        "rail_count": 1,
+        "max_terminals": 35
+    },
+    {
+        "id": "ejc2",
+        "name": "EJC 2",
+        "internal_length": 350,
+        "internal_width": 320,
+        "internal_depth": 190,
+        "mounting_plate_x": 390,
+        "mounting_plate_y": 240,
+        "max_holes_long": 18,
+        "max_holes_short": 16,
+        "rail_count": 2,
+        "max_terminals": 60
     }
 ]
 
