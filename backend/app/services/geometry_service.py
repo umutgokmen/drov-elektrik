@@ -14,36 +14,33 @@ from app.models import COMPONENTS, get_box_model_by_id
 
 
 # Engineering constants
-HOLE_DIAMETER = COMPONENTS["HOLE_M20"]["diameter"]
 TERMINAL_WIDTH = COMPONENTS["TERMINAL_2_5"]["width"]
 MIN_EDGE_MARGIN = 15
 RAIL_MARGIN = 20
 VERTICAL_MARGIN = 30
 
 
-def calculate_hole_positions(count: int, side_length: float) -> List[HolePosition]:
+def calculate_hole_positions(
+    count: int,
+    side_length: float,
+    hole_size: str = "M20",
+) -> List[HolePosition]:
     """
     Calculates evenly spaced positions for holes on a side.
-    
-    Args:
-        count: Number of holes
-        side_length: Length of the side in mm
-        
-    Returns:
-        List of HolePosition objects
+    Uses hole-size-specific diameter and clearance.
     """
     if count <= 0:
         return []
-    
-    # Calculate available space (with margins from corners)
-    total_internal_space = side_length - (2 * (HOLE_DIAMETER / 2 + 10))
-    spacing = total_internal_space / (count + 1)
-    
+
+    # Available space after edge margins
+    available = side_length - (2 * MIN_EDGE_MARGIN)
+    spacing = available / (count + 1)
+
     positions = []
     for i in range(count):
-        pos = (i + 1) * spacing + 10 + HOLE_DIAMETER / 2
+        pos = MIN_EDGE_MARGIN + (i + 1) * spacing
         positions.append(HolePosition(position=pos))
-    
+
     return positions
 
 
@@ -106,11 +103,11 @@ def calculate_full_layout(config: ConfigurationInput) -> LayoutResult:
     
     # Calculate all positions
     rails = calculate_rail_layout(box, config.terminals)
-    
-    holes_top = calculate_hole_positions(config.holes_top, box.internal_width)
-    holes_bottom = calculate_hole_positions(config.holes_bottom, box.internal_width)
-    holes_left = calculate_hole_positions(config.holes_left, box.internal_length)
-    holes_right = calculate_hole_positions(config.holes_right, box.internal_length)
+
+    holes_top = calculate_hole_positions(config.holes_top, box.internal_width, config.get_hole_size("top"))
+    holes_bottom = calculate_hole_positions(config.holes_bottom, box.internal_width, config.get_hole_size("bottom"))
+    holes_left = calculate_hole_positions(config.holes_left, box.internal_length, config.get_hole_size("left"))
+    holes_right = calculate_hole_positions(config.holes_right, box.internal_length, config.get_hole_size("right"))
     
     # Add X/Y coordinates for holes
     for hole in holes_top:

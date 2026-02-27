@@ -9,38 +9,41 @@ from app.schemas import (
     ValidationError,
     ValidationWarning,
 )
-from app.models import COMPONENTS, get_box_model_by_id
+from app.models import COMPONENTS, HOLE_SIZES, get_box_model_by_id
 
 
 # Engineering constants
-HOLE_DIAMETER = COMPONENTS["HOLE_M20"]["diameter"]
-MIN_HOLE_CLEARANCE = COMPONENTS["HOLE_M20"]["clearance"]
 MIN_EDGE_MARGIN = 15  # 15mm from box edge
 TERMINAL_WIDTH = COMPONENTS["TERMINAL_2_5"]["width"]
 RAIL_MARGIN = 20  # 20mm from each side of the rail
 
 
-def validate_hole_placement(hole_count: int, side_length: float) -> Tuple[bool, str, int]:
+def validate_hole_placement(
+    hole_count: int,
+    side_length: float,
+    hole_size: str = "M20",
+) -> Tuple[bool, str, int]:
     """
     Validates if the requested number of holes can physically fit on a side.
-    
-    Returns:
-        Tuple of (is_valid, error_message, max_possible)
     """
     if hole_count == 0:
         return True, "", 0
-    
+
+    size_spec = HOLE_SIZES.get(hole_size, HOLE_SIZES["M20"])
+    diameter = size_spec["diameter"]
+    clearance = size_spec["clearance"]
+
     available_length = side_length - (2 * MIN_EDGE_MARGIN)
-    space_per_hole = HOLE_DIAMETER + MIN_HOLE_CLEARANCE
-    max_possible = int((available_length + MIN_HOLE_CLEARANCE) / space_per_hole)
-    
+    space_per_hole = diameter + clearance
+    max_possible = int((available_length + clearance) / space_per_hole)
+
     if hole_count > max_possible:
         return (
             False,
-            f"Fiziksel olarak en fazla {max_possible} adet M20 delik sığar. (Kenar: {side_length}mm)",
+            f"Fiziksel olarak en fazla {max_possible} adet {hole_size} delik sigar. (Kenar: {side_length}mm)",
             max_possible
         )
-    
+
     return True, "", max_possible
 
 
@@ -90,14 +93,14 @@ def run_full_validation(config: ConfigurationInput) -> ValidationResult:
     
     # Hole validations
     hole_validations = [
-        ("holes_top", config.holes_top, box.internal_width),
-        ("holes_bottom", config.holes_bottom, box.internal_width),
-        ("holes_left", config.holes_left, box.internal_length),
-        ("holes_right", config.holes_right, box.internal_length),
+        ("holes_top", config.holes_top, box.internal_width, config.get_hole_size("top")),
+        ("holes_bottom", config.holes_bottom, box.internal_width, config.get_hole_size("bottom")),
+        ("holes_left", config.holes_left, box.internal_length, config.get_hole_size("left")),
+        ("holes_right", config.holes_right, box.internal_length, config.get_hole_size("right")),
     ]
-    
-    for field, count, length in hole_validations:
-        is_valid, message, max_possible = validate_hole_placement(count, length)
+
+    for field, count, length, hole_size in hole_validations:
+        is_valid, message, max_possible = validate_hole_placement(count, length, hole_size)
         if not is_valid:
             errors.append(ValidationError(field=field, message=message, max_possible=max_possible))
     

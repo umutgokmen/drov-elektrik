@@ -4,3 +4,4 @@ from .validation_service import (
     validate_terminal_placement,
     run_full_validation,
 )
+from .cover_validation import validate_cover_elements

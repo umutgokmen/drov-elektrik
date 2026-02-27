@@ -19,7 +19,7 @@ BOX_MODELS_DATA: List[Dict] = [
         "max_holes_long": 10,
         "max_holes_short": 8,
         "rail_count": 1,
-        "max_terminals": 30
+        "max_terminals": 26
     },
     {
         "id": "ejb31",
@@ -138,13 +138,22 @@ COMPONENTS = {
     "HOLE_M20": {
         "name": "M20 Hole",
         "diameter": 20,
-        "clearance": 5  # Minimum gap between holes
+        "clearance": 5
     },
     "RAIL_DIN": {
         "name": "DIN Rail NS 35",
         "height": 35,
         "depth": 7.5
     }
+}
+
+# Supported hole sizes (metric cable gland sizes)
+HOLE_SIZES = {
+    "M20": {"diameter": 20, "clearance": 5, "name": "M20 Cable Gland", "code": "M20-GL"},
+    "M25": {"diameter": 25, "clearance": 6, "name": "M25 Cable Gland", "code": "M25-GL"},
+    "M32": {"diameter": 32, "clearance": 8, "name": "M32 Cable Gland", "code": "M32-GL"},
+    "M40": {"diameter": 40, "clearance": 10, "name": "M40 Cable Gland", "code": "M40-GL"},
+    "M50": {"diameter": 50, "clearance": 12, "name": "M50 Cable Gland", "code": "M50-GL"},
 }
 
 
