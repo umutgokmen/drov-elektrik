@@ -3,9 +3,13 @@ import {
   Box, Download, FileText, Settings, Layers,
   ZoomIn, ZoomOut, RotateCcw, Maximize2,
   CheckCircle, AlertCircle, AlertTriangle,
-  ChevronDown, ChevronUp, Info
+  ChevronDown, ChevronUp, Info, LogOut,
+  Plus, Trash2, Circle
 } from 'lucide-react';
 import DrawingCanvas from './components/DrawingCanvas';
+import LoginPage from './components/LoginPage';
+import RegisterPage from './components/RegisterPage';
+import { useAuth } from './contexts/AuthContext';
 
 // API Base URL
 const API_BASE = 'http://localhost:8000/api/v1';
@@ -21,6 +25,33 @@ const DEFAULT_BOX_MODELS = [
 ];
 
 function App() {
+  const { user, loading: authLoading, logout } = useAuth();
+  const [authMode, setAuthMode] = useState('login');
+
+  if (authLoading) {
+    return (
+      <div className="auth-container">
+        <div className="auth-card">
+          <div className="auth-logo">
+            <div className="app-logo-icon">DV</div>
+            <p>Yukleniyor...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    if (authMode === 'register') {
+      return <RegisterPage onSwitchToLogin={() => setAuthMode('login')} />;
+    }
+    return <LoginPage onSwitchToRegister={() => setAuthMode('register')} />;
+  }
+
+  return <ConfiguratorApp user={user} logout={logout} />;
+}
+
+function ConfiguratorApp({ user, logout }) {
   // State
   const [boxModels, setBoxModels] = useState(DEFAULT_BOX_MODELS);
   const [selectedBoxId, setSelectedBoxId] = useState('ejb51');
@@ -29,14 +60,25 @@ function App() {
     holesTop: 3,
     holesBottom: 3,
     holesLeft: 0,
-    holesRight: 0
+    holesRight: 0,
+    holeSizeTop: 'M20',
+    holeSizeBottom: 'M20',
+    holeSizeLeft: 'M20',
+    holeSizeRight: 'M20',
   });
+  const [holeSizes, setHoleSizes] = useState({});
   const [validation, setValidation] = useState({ is_valid: true, errors: [], warnings: [] });
   const [zoom, setZoom] = useState(100);
   const [isLoading, setIsLoading] = useState(false);
   const [apiStatus, setApiStatus] = useState('connecting');
+  const [userList, setUserList] = useState([]);
+  const [controllerId, setControllerId] = useState(null);
+  const [coverElements, setCoverElements] = useState([]);
+  const [coverCatalog, setCoverCatalog] = useState([]);
 
   const selectedBox = boxModels.find(b => b.id === selectedBoxId) || boxModels[0];
+
+  const token = localStorage.getItem('token');
 
   // Load box models from API
   useEffect(() => {
@@ -65,6 +107,33 @@ function App() {
     };
     loadBoxModels();
   }, []);
+
+  // Load hole sizes from API
+  useEffect(() => {
+    fetch(`${API_BASE}/hole-sizes`)
+      .then((res) => res.ok ? res.json() : {})
+      .then((data) => setHoleSizes(data))
+      .catch(() => setHoleSizes({ M20: { diameter: 20 }, M25: { diameter: 25 }, M32: { diameter: 32 } }));
+  }, []);
+
+  // Load cover element catalog
+  useEffect(() => {
+    fetch(`${API_BASE}/cover-elements`)
+      .then((res) => res.ok ? res.json() : [])
+      .then((data) => setCoverCatalog(data))
+      .catch(() => {});
+  }, []);
+
+  // Load user list for controller selection
+  useEffect(() => {
+    if (!token) return;
+    fetch(`${API_BASE}/auth/users`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.ok ? res.json() : [])
+      .then((data) => setUserList(data))
+      .catch(() => {});
+  }, [token]);
 
   // Validate configuration via API
   useEffect(() => {
@@ -105,6 +174,24 @@ function App() {
     return () => clearTimeout(debounce);
   }, [selectedBoxId, config, selectedBox, apiStatus]);
 
+  const controllerName = userList.find(u => u.id === controllerId)?.full_name || null;
+
+  const buildConfigPayload = () => ({
+    box_id: selectedBoxId,
+    terminals: config.terminals,
+    holes_top: config.holesTop,
+    holes_bottom: config.holesBottom,
+    holes_left: config.holesLeft,
+    holes_right: config.holesRight,
+    holes_top_spec: { count: config.holesTop, size: config.holeSizeTop },
+    holes_bottom_spec: { count: config.holesBottom, size: config.holeSizeBottom },
+    holes_left_spec: { count: config.holesLeft, size: config.holeSizeLeft },
+    holes_right_spec: { count: config.holesRight, size: config.holeSizeRight },
+    prepared_by: user.full_name,
+    controlled_by: controllerName,
+    controller_id: controllerId,
+  });
+
   // Download handlers
   const downloadPDF = async () => {
     setIsLoading(true);
@@ -112,14 +199,7 @@ function App() {
       const response = await fetch(`${API_BASE}/generate/pdf`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          box_id: selectedBoxId,
-          terminals: config.terminals,
-          holes_top: config.holesTop,
-          holes_bottom: config.holesBottom,
-          holes_left: config.holesLeft,
-          holes_right: config.holesRight
-        })
+        body: JSON.stringify(buildConfigPayload())
       });
       if (response.ok) {
         const blob = await response.blob();
@@ -143,14 +223,7 @@ function App() {
       const response = await fetch(`${API_BASE}/generate/dxf`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          box_id: selectedBoxId,
-          terminals: config.terminals,
-          holes_top: config.holesTop,
-          holes_bottom: config.holesBottom,
-          holes_left: config.holesLeft,
-          holes_right: config.holesRight
-        })
+        body: JSON.stringify(buildConfigPayload())
       });
       if (response.ok) {
         const blob = await response.blob();
@@ -168,6 +241,30 @@ function App() {
     }
   };
 
+  const downloadSTEP = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/generate/step`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildConfigPayload())
+      });
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `DRV-${selectedBoxId.toUpperCase()}-001.step`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error('STEP download error', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Input handlers
   const handleInputChange = (field, value) => {
     let numValue = parseInt(value) || 0;
@@ -179,6 +276,27 @@ function App() {
     if (field === 'holesLeft' || field === 'holesRight') numValue = Math.min(numValue, selectedBox.max_holes_short);
 
     setConfig(prev => ({ ...prev, [field]: numValue }));
+  };
+
+  const addCoverElement = (elementId) => {
+    const elem = coverCatalog.find(e => e.id === elementId);
+    if (!elem) return;
+    setCoverElements(prev => [...prev, {
+      element_id: elementId,
+      x: (selectedBox.mounting_plate_x || selectedBox.internal_width) / 2,
+      y: (selectedBox.mounting_plate_y || selectedBox.internal_length) / 2,
+      label: '',
+    }]);
+  };
+
+  const removeCoverElement = (index) => {
+    setCoverElements(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const updateCoverElement = (index, field, value) => {
+    setCoverElements(prev => prev.map((el, i) =>
+      i === index ? { ...el, [field]: field === 'x' || field === 'y' ? parseFloat(value) || 0 : value } : el
+    ));
   };
 
   const totalHoles = config.holesTop + config.holesBottom + config.holesLeft + config.holesRight;
@@ -305,6 +423,10 @@ function App() {
         </div>
 
         <div className="toolbar-actions">
+          <span className="toolbar-user">{user.full_name}</span>
+          <button className="toolbar-btn" onClick={logout} title="Cikis Yap">
+            <LogOut size={16} />
+          </button>
           <button
             className="toolbar-btn"
             onClick={saveConfig}
@@ -320,6 +442,14 @@ function App() {
           >
             <Layers size={16} />
             DXF
+          </button>
+          <button
+            className="toolbar-btn"
+            onClick={downloadSTEP}
+            disabled={!validation.is_valid || isLoading}
+          >
+            <Box size={16} />
+            STEP
           </button>
           <button
             className="toolbar-btn primary"
@@ -416,35 +546,163 @@ function App() {
             </div>
           </div>
 
-          {/* M20 Holes */}
+          {/* Cable Entries */}
           <div className="config-section">
             <div className="config-section-title">
               <Layers size={12} />
-              M20 Cable Entries
+              Cable Entries
             </div>
             <div className="holes-grid">
               {[
-                { field: 'holesTop', label: 'Top', max: selectedBox.max_holes_long },
-                { field: 'holesBottom', label: 'Bottom', max: selectedBox.max_holes_long },
-                { field: 'holesLeft', label: 'Left', max: selectedBox.max_holes_short },
-                { field: 'holesRight', label: 'Right', max: selectedBox.max_holes_short },
-              ].map(({ field, label, max }) => (
+                { field: 'holesTop', sizeField: 'holeSizeTop', label: 'Top', max: selectedBox.max_holes_long },
+                { field: 'holesBottom', sizeField: 'holeSizeBottom', label: 'Bottom', max: selectedBox.max_holes_long },
+                { field: 'holesLeft', sizeField: 'holeSizeLeft', label: 'Left', max: selectedBox.max_holes_short },
+                { field: 'holesRight', sizeField: 'holeSizeRight', label: 'Right', max: selectedBox.max_holes_short },
+              ].map(({ field, sizeField, label, max }) => (
                 <div key={field} className="hole-input-wrapper">
                   <div className="form-label">
                     <span>{label}</span>
                     <span className="form-label-value">max {max}</span>
                   </div>
-                  <input
-                    type="number"
-                    className="form-input"
-                    value={config[field]}
-                    onChange={(e) => handleInputChange(field, e.target.value)}
-                    min="0"
-                    max={max}
-                  />
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <input
+                      type="number"
+                      className="form-input"
+                      style={{ flex: 1 }}
+                      value={config[field]}
+                      onChange={(e) => handleInputChange(field, e.target.value)}
+                      min="0"
+                      max={max}
+                    />
+                    <select
+                      className="form-select"
+                      style={{ width: '72px', fontSize: '11px', padding: '4px' }}
+                      value={config[sizeField]}
+                      onChange={(e) => setConfig(prev => ({ ...prev, [sizeField]: e.target.value }))}
+                    >
+                      {Object.keys(holeSizes).length > 0
+                        ? Object.keys(holeSizes).map(size => (
+                            <option key={size} value={size}>{size}</option>
+                          ))
+                        : ['M20', 'M25', 'M32', 'M40', 'M50'].map(size => (
+                            <option key={size} value={size}>{size}</option>
+                          ))
+                      }
+                    </select>
+                  </div>
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Controller Selection */}
+          <div className="config-section">
+            <div className="config-section-title">
+              <Info size={12} />
+              Kontrol Eden
+            </div>
+            <div className="form-group">
+              <select
+                className="form-select"
+                value={controllerId || ''}
+                onChange={(e) => setControllerId(e.target.value ? parseInt(e.target.value) : null)}
+              >
+                <option value="">Secilmedi</option>
+                {userList.filter(u => u.id !== user.id).map(u => (
+                  <option key={u.id} value={u.id}>{u.full_name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Cover Elements */}
+          <div className="config-section">
+            <div className="config-section-title">
+              <Circle size={12} />
+              Kapak Elemanlari
+            </div>
+            <div className="form-group">
+              <div style={{ display: 'flex', gap: '4px' }}>
+                <select
+                  className="form-select"
+                  style={{ flex: 1 }}
+                  id="cover-element-select"
+                  defaultValue=""
+                >
+                  <option value="" disabled>Eleman sec...</option>
+                  {coverCatalog.map(elem => (
+                    <option key={elem.id} value={elem.id}>{elem.name}</option>
+                  ))}
+                </select>
+                <button
+                  className="number-btn"
+                  style={{ padding: '4px 8px' }}
+                  onClick={() => {
+                    const sel = document.getElementById('cover-element-select');
+                    if (sel.value) {
+                      addCoverElement(sel.value);
+                      sel.value = '';
+                    }
+                  }}
+                >
+                  <Plus size={14} />
+                </button>
+              </div>
+            </div>
+            {coverElements.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
+                {coverElements.map((ce, i) => {
+                  const elem = coverCatalog.find(e => e.id === ce.element_id);
+                  return (
+                    <div key={i} style={{ padding: '6px', background: '#f8f9fa', borderRadius: '4px', fontSize: '11px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                        <span style={{ fontWeight: 500 }}>{elem?.name || ce.element_id}</span>
+                        <button
+                          className="number-btn"
+                          style={{ padding: '2px 4px', color: '#ef4444' }}
+                          onClick={() => removeCoverElement(i)}
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        <div style={{ flex: 1 }}>
+                          <span style={{ fontSize: '10px', color: '#64748b' }}>X (mm)</span>
+                          <input
+                            type="number"
+                            className="form-input"
+                            style={{ fontSize: '11px', padding: '2px 4px' }}
+                            value={ce.x}
+                            onChange={(e) => updateCoverElement(i, 'x', e.target.value)}
+                          />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <span style={{ fontSize: '10px', color: '#64748b' }}>Y (mm)</span>
+                          <input
+                            type="number"
+                            className="form-input"
+                            style={{ fontSize: '11px', padding: '2px 4px' }}
+                            value={ce.y}
+                            onChange={(e) => updateCoverElement(i, 'y', e.target.value)}
+                          />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <span style={{ fontSize: '10px', color: '#64748b' }}>Etiket</span>
+                          <input
+                            type="text"
+                            className="form-input"
+                            style={{ fontSize: '11px', padding: '2px 4px' }}
+                            value={ce.label}
+                            placeholder="S1"
+                            onChange={(e) => updateCoverElement(i, 'label', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -573,8 +831,16 @@ function App() {
                 <div className="drawing-info-value">1:2</div>
               </div>
               <div className="drawing-info-item">
-                <div className="drawing-info-label">Sheet</div>
-                <div className="drawing-info-value">1/1</div>
+                <div className="drawing-info-label">Hazirlayan</div>
+                <div className="drawing-info-value">{user.full_name}</div>
+              </div>
+              <div className="drawing-info-item">
+                <div className="drawing-info-label">Kontrol Eden</div>
+                <div className="drawing-info-value">{controllerName || '-'}</div>
+              </div>
+              <div className="drawing-info-item">
+                <div className="drawing-info-label">Sheets</div>
+                <div className="drawing-info-value">4</div>
               </div>
               <div className="drawing-info-item">
                 <div className="drawing-info-label">Date</div>

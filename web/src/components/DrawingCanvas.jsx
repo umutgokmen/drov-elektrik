@@ -1,332 +1,275 @@
 import React from 'react';
 
 /**
- * Industrial-grade CAD Drawing Canvas
- * Clean, technical drawing style matching professional engineering software
+ * Multi-view technical drawing canvas
+ * 3rd angle projection: Front + Top (above) + Right (to the right)
+ * Clean black/white line drawing style
  */
 const DrawingCanvas = ({ box, config }) => {
-    // A4 landscape proportions for preview
-    const canvasWidth = 680;
-    const canvasHeight = 480;
+    const canvasWidth = 780;
+    const canvasHeight = 560;
+    const margin = 30;
 
-    const margin = 40;
-    const drawScale = 0.35;
+    // Box dimensions in mm
+    const W = box.internalWidth;   // width
+    const L = box.internalLength;  // length (depth in top view)
+    const D = box.internalDepth;   // depth (height in front view)
 
-    // Calculate scaled dimensions
-    const boxWidth = box.internalWidth * drawScale;
-    const boxHeight = box.internalLength * drawScale;
+    // Compute unified scale to fit all 3 views
+    const gapPx = 60;
+    const availW = canvasWidth - 2 * margin - gapPx;
+    const availH = canvasHeight - 2 * margin - gapPx - 50; // 50 for header
 
-    // Drawing area position (centered)
-    const drawX = (canvasWidth - boxWidth) / 2;
-    const drawY = 120;
+    const scaleX = availW / (W + L);
+    const scaleY = availH / (D + L);
+    const s = Math.min(scaleX, scaleY) * 0.82;
 
-    // Calculate hole positions
-    const calculateHolePositions = (count, sideLength) => {
+    // Front view dimensions in px
+    const fW = W * s;
+    const fH = D * s;
+    // Top view dimensions
+    const tW = W * s;
+    const tH = L * s;
+    // Right view dimensions
+    const rW = L * s;
+    const rH = D * s;
+
+    // Front view origin (bottom-left of the front view)
+    const frontX = margin + 20;
+    const frontY = margin + 80; // leave room above for top view label
+
+    // Top view: above front view
+    const topX = frontX;
+    const topY = frontY + fH + gapPx;
+
+    // Right view: right of front view
+    const rightX = frontX + fW + gapPx;
+    const rightY = frontY;
+
+    const wallPx = 3 * s;
+
+    // Hole position calculator
+    const calcHolePos = (count, sideLen) => {
         if (count <= 0) return [];
-        const edgeMargin = 15;
-        const available = sideLength - (2 * edgeMargin);
-        const spacing = available / (count + 1);
-        return Array.from({ length: count }, (_, i) => edgeMargin + (i + 1) * spacing);
+        const edgeMar = 15;
+        const avail = sideLen - 2 * edgeMar;
+        const spacing = avail / (count + 1);
+        return Array.from({ length: count }, (_, i) => edgeMar + (i + 1) * spacing);
     };
 
-    const holesTop = calculateHolePositions(config.holesTop, box.internalWidth);
-    const holesBottom = calculateHolePositions(config.holesBottom, box.internalWidth);
-    const holesLeft = calculateHolePositions(config.holesLeft, box.internalLength);
-    const holesRight = calculateHolePositions(config.holesRight, box.internalLength);
-
-    // Calculate rail positions
-    const railMargin = 30;
+    // Rail positions
     const railCount = box.railCount || 1;
-    const railSpacing = railCount > 1 ? (box.internalLength - 2 * railMargin) / (railCount - 1) : 0;
+    const railMargin = 30;
+    const railSpacing = railCount > 1 ? (L - 2 * railMargin) / (railCount - 1) : 0;
     const terminalsPerRail = Math.ceil(config.terminals / railCount);
+    const termW = 5.2 * s;
+    const termH = 10 * s;
 
-    const holeRadius = 4;
-    const terminalWidth = 5.2 * drawScale;
-    const terminalHeight = 47 * drawScale;
+    const holeR = 4;
+
+    const holesTop = calcHolePos(config.holesTop, W);
+    const holesBottom = calcHolePos(config.holesBottom, W);
+    const holesLeft = calcHolePos(config.holesLeft, L);
+    const holesRight = calcHolePos(config.holesRight, L);
+
+    // Hole circle component
+    const HoleCircle = ({ cx, cy }) => (
+        <g>
+            <circle cx={cx} cy={cy} r={holeR} fill="none" stroke="#1e293b" strokeWidth="1.2" />
+            <line x1={cx - 2.5} y1={cy} x2={cx + 2.5} y2={cy} stroke="#1e293b" strokeWidth="0.5" />
+            <line x1={cx} y1={cy - 2.5} x2={cx} y2={cy + 2.5} stroke="#1e293b" strokeWidth="0.5" />
+        </g>
+    );
+
+    // Dimension line component (horizontal)
+    const HDim = ({ x1, x2, y, value, below = true }) => {
+        const dy = below ? y + 18 : y - 18;
+        const mid = (x1 + x2) / 2;
+        return (
+            <g>
+                <line x1={x1} y1={y} x2={x1} y2={dy} stroke="#333" strokeWidth="0.4" />
+                <line x1={x2} y1={y} x2={x2} y2={dy} stroke="#333" strokeWidth="0.4" />
+                <line x1={x1} y1={dy} x2={x2} y2={dy} stroke="#333" strokeWidth="0.5" />
+                <polygon points={`${x1},${dy} ${x1 + 4},${dy - 1.5} ${x1 + 4},${dy + 1.5}`} fill="#333" />
+                <polygon points={`${x2},${dy} ${x2 - 4},${dy - 1.5} ${x2 - 4},${dy + 1.5}`} fill="#333" />
+                <rect x={mid - 16} y={dy - 6} width={32} height={12} fill="white" />
+                <text x={mid} y={dy + 3} textAnchor="middle" fontSize="8" fontFamily="Helvetica, sans-serif" fill="#333">{value}</text>
+            </g>
+        );
+    };
+
+    // Dimension line component (vertical)
+    const VDim = ({ y1, y2, x, value, right = true }) => {
+        const dx = right ? x + 18 : x - 18;
+        const mid = (y1 + y2) / 2;
+        return (
+            <g>
+                <line x1={x} y1={y1} x2={dx} y2={y1} stroke="#333" strokeWidth="0.4" />
+                <line x1={x} y1={y2} x2={dx} y2={y2} stroke="#333" strokeWidth="0.4" />
+                <line x1={dx} y1={y1} x2={dx} y2={y2} stroke="#333" strokeWidth="0.5" />
+                <polygon points={`${dx},${y1} ${dx - 1.5},${y1 + 4} ${dx + 1.5},${y1 + 4}`} fill="#333" />
+                <polygon points={`${dx},${y2} ${dx - 1.5},${y2 - 4} ${dx + 1.5},${y2 - 4}`} fill="#333" />
+                <rect x={dx - 6} y={mid - 16} width={12} height={32} fill="white" />
+                <text x={dx} y={mid} textAnchor="middle" fontSize="8" fontFamily="Helvetica, sans-serif" fill="#333" transform={`rotate(-90, ${dx}, ${mid})`}>{value}</text>
+            </g>
+        );
+    };
 
     return (
-        <svg
-            width={canvasWidth}
-            height={canvasHeight}
-            style={{ background: '#ffffff' }}
-        >
+        <svg width={canvasWidth} height={canvasHeight} style={{ background: '#ffffff' }}>
             <defs>
-                {/* Grid pattern */}
-                <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-                    <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#f0f0f0" strokeWidth="0.5" />
-                </pattern>
-                {/* Hatch pattern for section view */}
-                <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-                    <line x1="0" y1="0" x2="0" y2="6" stroke="#cbd5e1" strokeWidth="0.5" />
+                <pattern id="grid-fine" width="10" height="10" patternUnits="userSpaceOnUse">
+                    <path d="M 10 0 L 0 0 0 10" fill="none" stroke="#f5f5f5" strokeWidth="0.3" />
                 </pattern>
             </defs>
 
-            {/* Background grid */}
-            <rect x="0" y="0" width={canvasWidth} height={canvasHeight} fill="url(#grid)" />
+            <rect x="0" y="0" width={canvasWidth} height={canvasHeight} fill="url(#grid-fine)" />
 
             {/* Title */}
-            <text x={canvasWidth / 2} y="30" textAnchor="middle" fontSize="14" fontWeight="600" fill="#1e293b">
-                TOP VIEW - {box.name}
+            <text x={canvasWidth / 2} y="20" textAnchor="middle" fontSize="12" fontWeight="600" fontFamily="Helvetica, sans-serif" fill="#1e293b">
+                {box.name} - 3rd Angle Projection
             </text>
-            <text x={canvasWidth / 2} y="48" textAnchor="middle" fontSize="10" fill="#64748b">
-                Scale 1:2 | All dimensions in mm
+            <text x={canvasWidth / 2} y="35" textAnchor="middle" fontSize="9" fontFamily="Helvetica, sans-serif" fill="#64748b">
+                Scale ~1:2 | All dimensions in mm
             </text>
 
-            {/* Section line A-A */}
-            <text x={drawX - 25} y={drawY + boxHeight / 2 + 4} fontSize="12" fontWeight="600" fill="#1e293b">A</text>
-            <line
-                x1={drawX - 15} y1={drawY + boxHeight / 2}
-                x2={drawX - 8} y2={drawY + boxHeight / 2}
-                stroke="#1e293b" strokeWidth="2"
-            />
-            <text x={drawX + boxWidth + 15} y={drawY + boxHeight / 2 + 4} fontSize="12" fontWeight="600" fill="#1e293b">A</text>
-            <line
-                x1={drawX + boxWidth + 8} y1={drawY + boxHeight / 2}
-                x2={drawX + boxWidth + 15} y2={drawY + boxHeight / 2}
-                stroke="#1e293b" strokeWidth="2"
-            />
-
-            {/* Main enclosure outline */}
-            <rect
-                x={drawX} y={drawY}
-                width={boxWidth} height={boxHeight}
-                fill="none"
-                stroke="#1e293b"
-                strokeWidth="2"
-            />
-
-            {/* Inner cavity */}
-            <rect
-                x={drawX + 4} y={drawY + 4}
-                width={boxWidth - 8} height={boxHeight - 8}
-                fill="none"
-                stroke="#64748b"
-                strokeWidth="0.75"
-                strokeDasharray="2,2"
-            />
-
-            {/* DIN Rails */}
-            {Array.from({ length: railCount }).map((_, i) => {
-                const railY = railCount > 1
-                    ? drawY + (railMargin + i * railSpacing) * drawScale
-                    : drawY + boxHeight / 2;
-                const railWidth = boxWidth - 40;
-
-                return (
-                    <g key={`rail-${i}`}>
-                        {/* Rail body */}
-                        <rect
-                            x={drawX + 20}
-                            y={railY - 5}
-                            width={railWidth}
-                            height={10}
-                            fill="#e2e8f0"
-                            stroke="#94a3b8"
-                            strokeWidth="1"
-                        />
-                        {/* Rail label */}
-                        <text
-                            x={drawX + 10}
-                            y={railY + 4}
-                            fontSize="8"
-                            fill="#64748b"
-                        >
-                            R{i + 1}
-                        </text>
-
-                        {/* Terminals on this rail */}
-                        {Array.from({ length: Math.min(terminalsPerRail, config.terminals - i * terminalsPerRail) }).map((_, t) => {
-                            if (i * terminalsPerRail + t >= config.terminals) return null;
-                            return (
-                                <rect
-                                    key={`term-${i}-${t}`}
-                                    x={drawX + 25 + t * (terminalWidth + 1)}
-                                    y={railY - terminalHeight / 2}
-                                    width={terminalWidth}
-                                    height={terminalHeight}
-                                    fill="#a3e635"
-                                    stroke="#65a30d"
-                                    strokeWidth="0.5"
-                                    rx="1"
-                                />
-                            );
-                        })}
-                    </g>
-                );
-            })}
-
-            {/* M20 Holes - Top */}
-            {holesTop.map((pos, i) => (
-                <g key={`hole-top-${i}`}>
-                    <circle
-                        cx={drawX + pos * drawScale}
-                        cy={drawY - 12}
-                        r={holeRadius}
-                        fill="none"
-                        stroke="#ef4444"
-                        strokeWidth="1.5"
-                    />
-                    <line
-                        x1={drawX + pos * drawScale - 3}
-                        y1={drawY - 12}
-                        x2={drawX + pos * drawScale + 3}
-                        y2={drawY - 12}
-                        stroke="#ef4444"
-                        strokeWidth="0.75"
-                    />
-                    <line
-                        x1={drawX + pos * drawScale}
-                        y1={drawY - 15}
-                        x2={drawX + pos * drawScale}
-                        y2={drawY - 9}
-                        stroke="#ef4444"
-                        strokeWidth="0.75"
-                    />
-                </g>
-            ))}
-
-            {/* M20 Holes - Bottom */}
-            {holesBottom.map((pos, i) => (
-                <g key={`hole-bottom-${i}`}>
-                    <circle
-                        cx={drawX + pos * drawScale}
-                        cy={drawY + boxHeight + 12}
-                        r={holeRadius}
-                        fill="none"
-                        stroke="#ef4444"
-                        strokeWidth="1.5"
-                    />
-                    <line
-                        x1={drawX + pos * drawScale - 3}
-                        y1={drawY + boxHeight + 12}
-                        x2={drawX + pos * drawScale + 3}
-                        y2={drawY + boxHeight + 12}
-                        stroke="#ef4444"
-                        strokeWidth="0.75"
-                    />
-                    <line
-                        x1={drawX + pos * drawScale}
-                        y1={drawY + boxHeight + 9}
-                        x2={drawX + pos * drawScale}
-                        y2={drawY + boxHeight + 15}
-                        stroke="#ef4444"
-                        strokeWidth="0.75"
-                    />
-                </g>
-            ))}
-
-            {/* M20 Holes - Left */}
-            {holesLeft.map((pos, i) => (
-                <g key={`hole-left-${i}`}>
-                    <circle
-                        cx={drawX - 12}
-                        cy={drawY + pos * drawScale}
-                        r={holeRadius}
-                        fill="none"
-                        stroke="#ef4444"
-                        strokeWidth="1.5"
-                    />
-                    <line
-                        x1={drawX - 15}
-                        y1={drawY + pos * drawScale}
-                        x2={drawX - 9}
-                        y2={drawY + pos * drawScale}
-                        stroke="#ef4444"
-                        strokeWidth="0.75"
-                    />
-                    <line
-                        x1={drawX - 12}
-                        y1={drawY + pos * drawScale - 3}
-                        x2={drawX - 12}
-                        y2={drawY + pos * drawScale + 3}
-                        stroke="#ef4444"
-                        strokeWidth="0.75"
-                    />
-                </g>
-            ))}
-
-            {/* M20 Holes - Right */}
-            {holesRight.map((pos, i) => (
-                <g key={`hole-right-${i}`}>
-                    <circle
-                        cx={drawX + boxWidth + 12}
-                        cy={drawY + pos * drawScale}
-                        r={holeRadius}
-                        fill="none"
-                        stroke="#ef4444"
-                        strokeWidth="1.5"
-                    />
-                    <line
-                        x1={drawX + boxWidth + 9}
-                        y1={drawY + pos * drawScale}
-                        x2={drawX + boxWidth + 15}
-                        y2={drawY + pos * drawScale}
-                        stroke="#ef4444"
-                        strokeWidth="0.75"
-                    />
-                    <line
-                        x1={drawX + boxWidth + 12}
-                        y1={drawY + pos * drawScale - 3}
-                        x2={drawX + boxWidth + 12}
-                        y2={drawY + pos * drawScale + 3}
-                        stroke="#ef4444"
-                        strokeWidth="0.75"
-                    />
-                </g>
-            ))}
-
-            {/* Dimension - Width */}
+            {/* ===== FRONT VIEW (Width x Depth) ===== */}
             <g>
-                <line
-                    x1={drawX}
-                    y1={drawY + boxHeight + 35}
-                    x2={drawX + boxWidth}
-                    y2={drawY + boxHeight + 35}
-                    stroke="#f59e0b"
-                    strokeWidth="1"
-                    markerEnd="url(#arrow)"
-                    markerStart="url(#arrow)"
-                />
-                <line x1={drawX} y1={drawY + boxHeight + 28} x2={drawX} y2={drawY + boxHeight + 42} stroke="#f59e0b" strokeWidth="0.5" />
-                <line x1={drawX + boxWidth} y1={drawY + boxHeight + 28} x2={drawX + boxWidth} y2={drawY + boxHeight + 42} stroke="#f59e0b" strokeWidth="0.5" />
-                <rect x={drawX + boxWidth / 2 - 20} y={drawY + boxHeight + 28} width="40" height="14" fill="white" />
-                <text x={drawX + boxWidth / 2} y={drawY + boxHeight + 39} textAnchor="middle" fontSize="10" fontWeight="500" fill="#f59e0b">
-                    {box.internalWidth}
+                {/* Outline */}
+                <rect x={frontX} y={frontY} width={fW} height={fH}
+                    fill="none" stroke="#1e293b" strokeWidth="1.5" />
+                {/* Inner cavity */}
+                <rect x={frontX + wallPx} y={frontY + wallPx} width={fW - 2 * wallPx} height={fH - 2 * wallPx}
+                    fill="none" stroke="#94a3b8" strokeWidth="0.4" strokeDasharray="3,2" />
+
+                {/* Top holes on front view (at top edge) */}
+                {holesTop.map((pos, i) => (
+                    <HoleCircle key={`ft-${i}`} cx={frontX + pos * s} cy={frontY + fH} />
+                ))}
+                {/* Bottom holes on front view (at bottom edge) */}
+                {holesBottom.map((pos, i) => (
+                    <HoleCircle key={`fb-${i}`} cx={frontX + pos * s} cy={frontY} />
+                ))}
+
+                {/* Section line A-A */}
+                <line x1={frontX - 10} y1={frontY + fH / 2} x2={frontX + fW + 10} y2={frontY + fH / 2}
+                    stroke="#1e293b" strokeWidth="0.8" strokeDasharray="8,3,2,3" />
+                <text x={frontX - 16} y={frontY + fH / 2 + 4} fontSize="10" fontWeight="600" fill="#1e293b">A</text>
+                <text x={frontX + fW + 14} y={frontY + fH / 2 + 4} fontSize="10" fontWeight="600" fill="#1e293b">A</text>
+
+                {/* Dimensions */}
+                <HDim x1={frontX} x2={frontX + fW} y={frontY} value={W} below={false} />
+                <VDim y1={frontY} y2={frontY + fH} x={frontX + fW} value={D} />
+
+                <text x={frontX + fW / 2} y={frontY - 28} textAnchor="middle" fontSize="10" fontWeight="600" fontFamily="Helvetica, sans-serif" fill="#1e293b">
+                    FRONT VIEW
                 </text>
             </g>
 
-            {/* Dimension - Height */}
+            {/* ===== TOP VIEW (Width x Length) - above front ===== */}
             <g>
-                <line
-                    x1={drawX + boxWidth + 35}
-                    y1={drawY}
-                    x2={drawX + boxWidth + 35}
-                    y2={drawY + boxHeight}
-                    stroke="#f59e0b"
-                    strokeWidth="1"
-                />
-                <line x1={drawX + boxWidth + 28} y1={drawY} x2={drawX + boxWidth + 42} y2={drawY} stroke="#f59e0b" strokeWidth="0.5" />
-                <line x1={drawX + boxWidth + 28} y1={drawY + boxHeight} x2={drawX + boxWidth + 42} y2={drawY + boxHeight} stroke="#f59e0b" strokeWidth="0.5" />
-                <rect x={drawX + boxWidth + 28} y={drawY + boxHeight / 2 - 7} width="40" height="14" fill="white" />
-                <text x={drawX + boxWidth + 48} y={drawY + boxHeight / 2 + 4} textAnchor="middle" fontSize="10" fontWeight="500" fill="#f59e0b">
-                    {box.internalLength}
+                <rect x={topX} y={topY} width={tW} height={tH}
+                    fill="none" stroke="#1e293b" strokeWidth="1.5" />
+                <rect x={topX + wallPx} y={topY + wallPx} width={tW - 2 * wallPx} height={tH - 2 * wallPx}
+                    fill="none" stroke="#94a3b8" strokeWidth="0.4" strokeDasharray="3,2" />
+
+                {/* DIN Rails */}
+                {Array.from({ length: railCount }).map((_, i) => {
+                    const railY = railCount > 1
+                        ? topY + (railMargin + i * railSpacing) * s
+                        : topY + tH / 2;
+                    const railW = tW - 40 * s;
+                    const railX = topX + 20 * s;
+                    return (
+                        <g key={`rail-${i}`}>
+                            <rect x={railX} y={railY - 3 * s} width={railW} height={6 * s}
+                                fill="none" stroke="#94a3b8" strokeWidth="0.75" />
+                            <text x={topX + 6} y={railY + 3} fontSize="7" fill="#94a3b8">R{i + 1}</text>
+                            {Array.from({ length: Math.min(terminalsPerRail, config.terminals - i * terminalsPerRail) }).map((_, t) => {
+                                if (i * terminalsPerRail + t >= config.terminals) return null;
+                                const tx = railX + 3 * s + t * (termW + 0.5 * s);
+                                if (tx + termW > railX + railW - 3 * s) return null;
+                                return (
+                                    <rect key={`t-${i}-${t}`}
+                                        x={tx} y={railY - termH / 2}
+                                        width={termW} height={termH}
+                                        fill="none" stroke="#64748b" strokeWidth="0.3" />
+                                );
+                            })}
+                        </g>
+                    );
+                })}
+
+                {/* Left/Right holes */}
+                {holesLeft.map((pos, i) => (
+                    <HoleCircle key={`tl-${i}`} cx={topX} cy={topY + pos * s} />
+                ))}
+                {holesRight.map((pos, i) => (
+                    <HoleCircle key={`tr-${i}`} cx={topX + tW} cy={topY + pos * s} />
+                ))}
+
+                {/* Section line B-B */}
+                <line x1={topX + tW / 2} y1={topY - 8} x2={topX + tW / 2} y2={topY + tH + 8}
+                    stroke="#1e293b" strokeWidth="0.8" strokeDasharray="8,3,2,3" />
+                <text x={topX + tW / 2} y={topY - 12} textAnchor="middle" fontSize="10" fontWeight="600" fill="#1e293b">B</text>
+                <text x={topX + tW / 2} y={topY + tH + 18} textAnchor="middle" fontSize="10" fontWeight="600" fill="#1e293b">B</text>
+
+                <VDim y1={topY} y2={topY + tH} x={topX} value={L} right={false} />
+
+                <text x={topX + tW / 2} y={topY + tH + 30} textAnchor="middle" fontSize="10" fontWeight="600" fontFamily="Helvetica, sans-serif" fill="#1e293b">
+                    TOP VIEW
+                </text>
+            </g>
+
+            {/* ===== RIGHT VIEW (Length x Depth) - right of front ===== */}
+            <g>
+                <rect x={rightX} y={rightY} width={rW} height={rH}
+                    fill="none" stroke="#1e293b" strokeWidth="1.5" />
+                <rect x={rightX + wallPx} y={rightY + wallPx} width={rW - 2 * wallPx} height={rH - 2 * wallPx}
+                    fill="none" stroke="#94a3b8" strokeWidth="0.4" strokeDasharray="3,2" />
+
+                {/* Right side holes */}
+                {holesRight.map((pos, i) => (
+                    <HoleCircle key={`rr-${i}`} cx={rightX + pos * s} cy={rightY + rH / 2} />
+                ))}
+
+                {/* Rails as hidden lines */}
+                {Array.from({ length: railCount }).map((_, i) => {
+                    const railY = railCount > 1
+                        ? rightY + (railMargin + i * railSpacing) * s * (rH / tH)
+                        : rightY + rH * 0.6;
+                    return (
+                        <line key={`rrl-${i}`}
+                            x1={rightX + wallPx} y1={railY}
+                            x2={rightX + rW - wallPx} y2={railY}
+                            stroke="#94a3b8" strokeWidth="0.4" strokeDasharray="2,2" />
+                    );
+                })}
+
+                <HDim x1={rightX} x2={rightX + rW} y={rightY} value={L} below={false} />
+                <VDim y1={rightY} y2={rightY + rH} x={rightX + rW} value={D} />
+
+                <text x={rightX + rW / 2} y={rightY - 28} textAnchor="middle" fontSize="10" fontWeight="600" fontFamily="Helvetica, sans-serif" fill="#1e293b">
+                    RIGHT VIEW
                 </text>
             </g>
 
             {/* Legend */}
-            <g transform={`translate(${margin}, ${canvasHeight - 50})`}>
-                <rect x="0" y="0" width="140" height="40" fill="#f8fafc" stroke="#e2e8f0" strokeWidth="1" rx="4" />
-                <circle cx="15" cy="12" r="4" fill="none" stroke="#ef4444" strokeWidth="1.5" />
-                <text x="25" y="15" fontSize="9" fill="#475569">M20 Cable Entry</text>
-                <rect x="8" y="24" width="14" height="8" fill="#a3e635" stroke="#65a30d" strokeWidth="0.5" rx="1" />
-                <text x="25" y="31" fontSize="9" fill="#475569">UT 2,5 Terminal</text>
-                <rect x="80" y="8" width="20" height="6" fill="#e2e8f0" stroke="#94a3b8" strokeWidth="0.5" />
-                <text x="105" y="15" fontSize="9" fill="#475569">DIN Rail</text>
+            <g transform={`translate(${canvasWidth - 180}, ${canvasHeight - 50})`}>
+                <rect x="0" y="0" width="160" height="42" fill="#fafafa" stroke="#e2e8f0" strokeWidth="0.5" rx="3" />
+                <circle cx="14" cy="12" r="4" fill="none" stroke="#1e293b" strokeWidth="1" />
+                <line x1="12" y1="12" x2="16" y2="12" stroke="#1e293b" strokeWidth="0.5" />
+                <line x1="14" y1="10" x2="14" y2="14" stroke="#1e293b" strokeWidth="0.5" />
+                <text x="24" y="15" fontSize="8" fill="#475569" fontFamily="Helvetica, sans-serif">Cable Entry Hole</text>
+                <rect x="8" y="24" width="12" height="7" fill="none" stroke="#64748b" strokeWidth="0.5" />
+                <text x="24" y="31" fontSize="8" fill="#475569" fontFamily="Helvetica, sans-serif">Terminal Block</text>
+                <rect x="90" y="8" width="18" height="5" fill="none" stroke="#94a3b8" strokeWidth="0.75" />
+                <text x="112" y="15" fontSize="8" fill="#475569" fontFamily="Helvetica, sans-serif">DIN Rail</text>
             </g>
 
             {/* Drawing number */}
-            <text x={canvasWidth - margin} y={canvasHeight - 15} textAnchor="end" fontSize="9" fill="#94a3b8">
-                DRV-{box.id?.toUpperCase() || 'XXX'}-001 | Sheet 1/1
+            <text x={margin} y={canvasHeight - 10} fontSize="8" fill="#94a3b8" fontFamily="Helvetica, sans-serif">
+                DRV-{box.id?.toUpperCase() || 'XXX'}-001 | Sheet 1/4
             </text>
         </svg>
     );
