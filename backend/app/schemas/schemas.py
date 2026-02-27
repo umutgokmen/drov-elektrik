@@ -1,6 +1,8 @@
 """
 Pydantic schemas for API request/response validation
 """
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from enum import Enum
@@ -146,3 +148,32 @@ class LabelInput(BaseModel):
     date: Optional[str] = Field(None, description="Date in DD.MM.YYYY format; defaults to today")
     notes: str = Field("", description="Additional notes / notlar")
     label_size: LabelSize = Field(LabelSize.A5, description="Label paper size")
+
+
+# ==================== ORDERS ====================
+
+class OrderCreate(BaseModel):
+    """Payload for saving a new order"""
+    box_id: str = Field(..., description="Box model ID (e.g., 'ejb51')")
+    terminals: int = Field(..., ge=0)
+    holes_top: int = Field(0, ge=0)
+    holes_bottom: int = Field(0, ge=0)
+    holes_left: int = Field(0, ge=0)
+    holes_right: int = Field(0, ge=0)
+    name: Optional[str] = Field(None, description="Optional label for this order")
+
+
+class OrderResponse(BaseModel):
+    """Single order record returned from the API"""
+    id: int
+    name: Optional[str] = None
+    box_id: str
+    terminals: int
+    holes_top: int
+    holes_bottom: int
+    holes_left: int
+    holes_right: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

@@ -14,3 +14,4 @@ from .box_models import (
     get_all_ejc_box_models,
     get_ejc_box_model_by_id,
 )
+from .order_model import Order

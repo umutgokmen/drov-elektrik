@@ -3,9 +3,10 @@ import {
   Box, Download, FileText, Settings, Layers,
   ZoomIn, ZoomOut, RotateCcw, Maximize2,
   CheckCircle, AlertCircle, AlertTriangle,
-  ChevronDown, ChevronUp, Info, Tag
+  ChevronDown, ChevronUp, Info, Tag, Clock, Save
 } from 'lucide-react';
 import DrawingCanvas from './components/DrawingCanvas';
+import OrderHistory from './components/OrderHistory';
 
 // API Base URL
 const API_BASE = 'http://localhost:8000/api/v1';
@@ -35,6 +36,10 @@ function App() {
   const [zoom, setZoom] = useState(100);
   const [isLoading, setIsLoading] = useState(false);
   const [apiStatus, setApiStatus] = useState('connecting');
+
+  // Order history state
+  const [orders, setOrders] = useState([]);
+  const [showHistory, setShowHistory] = useState(false);
 
   const selectedBox = boxModels.find(b => b.id === selectedBoxId) || boxModels[0];
 
@@ -319,7 +324,7 @@ function App() {
     }
   };
 
-  // Save Config Handler
+  // Save Config Handler (JSON download - kept for offline use)
   const saveConfig = () => {
     const data = {
       box_id: selectedBoxId,
@@ -335,6 +340,54 @@ function App() {
     window.URL.revokeObjectURL(url);
   };
 
+  // Save Order to backend
+  const saveOrderToHistory = async () => {
+    if (apiStatus !== 'connected') return;
+    try {
+      await fetch(`${API_BASE}/orders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          box_id: selectedBoxId,
+          terminals: config.terminals,
+          holes_top: config.holesTop,
+          holes_bottom: config.holesBottom,
+          holes_left: config.holesLeft,
+          holes_right: config.holesRight,
+        }),
+      });
+      await loadOrders();
+    } catch (error) {
+      console.error('Save order error', error);
+    }
+  };
+
+  // Load orders from backend
+  const loadOrders = async () => {
+    if (apiStatus !== 'connected') return;
+    try {
+      const response = await fetch(`${API_BASE}/orders`);
+      if (response.ok) {
+        setOrders(await response.json());
+      }
+    } catch (error) {
+      console.warn('Could not load orders', error);
+    }
+  };
+
+  // Load an order into the configurator
+  const loadOrderConfig = (order) => {
+    setSelectedBoxId(order.box_id);
+    setConfig({
+      terminals: order.terminals,
+      holesTop: order.holes_top,
+      holesBottom: order.holes_bottom,
+      holesLeft: order.holes_left,
+      holesRight: order.holes_right,
+    });
+    setShowHistory(false);
+  };
+
   // Auto-refresh 3D preview if active and config changes? No, too slow. Manual refresh.
   // But if mode is 3d and config changes, maybe revert to 2d or show stale warning?
   // Let's keep it simple: switch to 2d on config change.
@@ -347,6 +400,13 @@ function App() {
       return () => clearTimeout(debounce);
     }
   }, [config, selectedBoxId, previewMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load order history once connected
+  useEffect(() => {
+    if (apiStatus === 'connected') {
+      loadOrders();
+    }
+  }, [apiStatus]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Keyboard Shortcuts
   useEffect(() => {
@@ -387,6 +447,24 @@ function App() {
           >
             <FileText size={16} />
             Save
+          </button>
+          <button
+            className="toolbar-btn"
+            onClick={saveOrderToHistory}
+            disabled={apiStatus !== 'connected' || !validation.is_valid}
+            title="Save order to history"
+          >
+            <Save size={16} />
+            Save Order
+          </button>
+          <button
+            className="toolbar-btn"
+            onClick={() => { loadOrders(); setShowHistory(true); }}
+            disabled={apiStatus !== 'connected'}
+            title="View order history"
+          >
+            <Clock size={16} />
+            History
           </button>
           <button
             className="toolbar-btn"
@@ -788,6 +866,16 @@ function App() {
           <span>Units: mm</span>
         </div>
       </footer>
+
+      {/* Order History Modal */}
+      {showHistory && (
+        <OrderHistory
+          orders={orders}
+          boxModels={boxModels}
+          onLoad={loadOrderConfig}
+          onClose={() => setShowHistory(false)}
+        />
+      )}
     </div>
   );
 }
