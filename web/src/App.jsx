@@ -11,14 +11,40 @@ import OrderHistory from './components/OrderHistory';
 // API Base URL
 const API_BASE = 'http://localhost:8000/api/v1';
 
-// Box models (loaded 서버에서)
+// Box models (loaded from server; these serve as offline fallback only)
 const DEFAULT_BOX_MODELS = [
+  // EJB series
   { id: 'ejb21', name: 'EJB 21', internal_width: 179, internal_length: 169, internal_depth: 160, rail_count: 1, max_terminals: 30, max_holes_long: 10, max_holes_short: 8 },
   { id: 'ejb31', name: 'EJB 31', internal_width: 258, internal_length: 249, internal_depth: 294, rail_count: 2, max_terminals: 52, max_holes_long: 28, max_holes_short: 20 },
   { id: 'ejb51', name: 'EJB 51', internal_width: 388, internal_length: 390, internal_depth: 370, rail_count: 2, max_terminals: 80, max_holes_long: 44, max_holes_short: 24 },
   { id: 'ejb61', name: 'EJB 61', internal_width: 470, internal_length: 500, internal_depth: 360, rail_count: 3, max_terminals: 92, max_holes_long: 72, max_holes_short: 48 },
   { id: 'ejb71', name: 'EJB 71', internal_width: 530, internal_length: 600, internal_depth: 410, rail_count: 3, max_terminals: 110, max_holes_long: 90, max_holes_short: 59 },
   { id: 'ejb91', name: 'EJB 91', internal_width: 650, internal_length: 700, internal_depth: 510, rail_count: 3, max_terminals: 140, max_holes_long: 112, max_holes_short: 70 },
+  // ESP series
+  { id: 'esp1', name: 'ESP 1', internal_width: 80, internal_length: 120, internal_depth: 60, rail_count: 1, max_terminals: 7, max_holes_long: 3, max_holes_short: 2 },
+  { id: 'esp2', name: 'ESP 2', internal_width: 100, internal_length: 150, internal_depth: 80, rail_count: 1, max_terminals: 11, max_holes_long: 4, max_holes_short: 3 },
+  { id: 'esp3', name: 'ESP 3', internal_width: 150, internal_length: 200, internal_depth: 100, rail_count: 1, max_terminals: 21, max_holes_long: 7, max_holes_short: 5 },
+  { id: 'esp4', name: 'ESP 4', internal_width: 200, internal_length: 300, internal_depth: 120, rail_count: 2, max_terminals: 40, max_holes_long: 11, max_holes_short: 7 },
+  { id: 'esp5', name: 'ESP 5', internal_width: 300, internal_length: 400, internal_depth: 150, rail_count: 2, max_terminals: 60, max_holes_long: 15, max_holes_short: 11 },
+  // ESA series
+  { id: 'esa1', name: 'ESA 1', internal_width: 300, internal_length: 300, internal_depth: 180, rail_count: 2, max_terminals: 50, max_holes_long: 14, max_holes_short: 14 },
+  { id: 'esa2', name: 'ESA 2', internal_width: 350, internal_length: 400, internal_depth: 200, rail_count: 2, max_terminals: 70, max_holes_long: 22, max_holes_short: 18 },
+  { id: 'esa3', name: 'ESA 3', internal_width: 200, internal_length: 250, internal_depth: 150, rail_count: 1, max_terminals: 28, max_holes_long: 18, max_holes_short: 12 },
+  { id: 'esa4', name: 'ESA 4', internal_width: 300, internal_length: 350, internal_depth: 200, rail_count: 2, max_terminals: 52, max_holes_long: 24, max_holes_short: 20 },
+  { id: 'esa5', name: 'ESA 5', internal_width: 400, internal_length: 450, internal_depth: 250, rail_count: 2, max_terminals: 76, max_holes_long: 32, max_holes_short: 28 },
+  { id: 'esa6', name: 'ESA 6', internal_width: 450, internal_length: 550, internal_depth: 300, rail_count: 3, max_terminals: 96, max_holes_long: 42, max_holes_short: 32 },
+  // ESX series (stainless steel)
+  { id: 'esx1',  name: 'ESX 1',  internal_width: 400, internal_length: 400, internal_depth: 220, rail_count: 2, max_terminals: 60, max_holes_long: 22, max_holes_short: 22 },
+  { id: 'esx2',  name: 'ESX 2',  internal_width: 450, internal_length: 500, internal_depth: 250, rail_count: 3, max_terminals: 90, max_holes_long: 30, max_holes_short: 26 },
+  { id: 'esx15', name: 'ESX 15', internal_width: 150, internal_length: 150, internal_depth: 80,  rail_count: 1, max_terminals: 16, max_holes_long: 4,  max_holes_short: 4 },
+  { id: 'esx20', name: 'ESX 20', internal_width: 200, internal_length: 200, internal_depth: 100, rail_count: 1, max_terminals: 24, max_holes_long: 6,  max_holes_short: 6 },
+  { id: 'esx30', name: 'ESX 30', internal_width: 250, internal_length: 300, internal_depth: 150, rail_count: 2, max_terminals: 40, max_holes_long: 8,  max_holes_short: 6 },
+  { id: 'esx40', name: 'ESX 40', internal_width: 300, internal_length: 400, internal_depth: 200, rail_count: 2, max_terminals: 56, max_holes_long: 10, max_holes_short: 8 },
+  // EJBX series
+  { id: 'ejbx1', name: 'EJBX 1', internal_width: 160, internal_length: 200, internal_depth: 120, rail_count: 1, max_terminals: 20, max_holes_long: 8,  max_holes_short: 6 },
+  { id: 'ejbx2', name: 'EJBX 2', internal_width: 230, internal_length: 300, internal_depth: 150, rail_count: 2, max_terminals: 40, max_holes_long: 16, max_holes_short: 10 },
+  { id: 'ejbx3', name: 'EJBX 3', internal_width: 310, internal_length: 400, internal_depth: 200, rail_count: 2, max_terminals: 60, max_holes_long: 24, max_holes_short: 14 },
+  { id: 'ejbx4', name: 'EJBX 4', internal_width: 400, internal_length: 500, internal_depth: 250, rail_count: 3, max_terminals: 80, max_holes_long: 32, max_holes_short: 18 },
 ];
 
 function App() {
