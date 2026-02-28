@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/useAuth';
 
 export default function RegisterPage({ onSwitchToLogin }) {
   const { register } = useAuth();

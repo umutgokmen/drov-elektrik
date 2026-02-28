@@ -391,7 +391,7 @@ body {
 /* Grid Layout for Holes */
 .holes-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 1fr;
   gap: var(--space-3);
 }
 
@@ -400,7 +400,18 @@ body {
 }
 
 .hole-input-wrapper .form-label {
-  font-size: 10px;
+  font-size: 11px;
+  margin-bottom: var(--space-1);
+}
+
+.hole-input-wrapper .form-input {
+  min-width: 0;
+  font-size: 12px;
+}
+
+.hole-input-wrapper .form-select {
+  font-size: 11px;
+  min-width: 68px;
 }
 
 /* ===== PREVIEW PANEL (CENTER) ===== */

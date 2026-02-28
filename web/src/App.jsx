@@ -4,12 +4,14 @@ import {
   ZoomIn, ZoomOut, RotateCcw, Maximize2,
   CheckCircle, AlertCircle, AlertTriangle,
   ChevronDown, ChevronUp, Info, LogOut,
-  Plus, Trash2, Circle
+  Plus, Trash2, Circle, Save, Clock, Tag
 } from 'lucide-react';
 import DrawingCanvas from './components/DrawingCanvas';
+import IsometricView from './components/IsometricView';
 import LoginPage from './components/LoginPage';
 import RegisterPage from './components/RegisterPage';
 import { useAuth } from './contexts/useAuth';
+import OrderHistory from './components/OrderHistory';
 
 // API Base URL
 const API_BASE = 'http://localhost:8000/api/v1';
@@ -104,8 +106,6 @@ function ConfiguratorApp({ user, logout }) {
   const [orders, setOrders] = useState([]);
   const [showOrders, setShowOrders] = useState(false);
 
-  // Order history state
-  const [orders, setOrders] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
 
   const selectedBox = boxModels.find(b => b.id === selectedBoxId) || boxModels[0];
@@ -386,27 +386,7 @@ function ConfiguratorApp({ user, logout }) {
       holeSizeRight: 'M20',
     });
     setShowOrders(false);
-  };
-
-  const downloadLabel = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/generate/label`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ box_id: selectedBoxId }),
-      });
-      if (res.ok) {
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `LABEL-${selectedBoxId.toUpperCase()}.pdf`;
-        a.click();
-        URL.revokeObjectURL(url);
-      }
-    } catch (e) {
-      alert('Etiket olusturulamadi');
-    }
+    setShowHistory(false);
   };
 
   const totalHoles = config.holesTop + config.holesBottom + config.holesLeft + config.holesRight;
@@ -424,8 +404,6 @@ function ConfiguratorApp({ user, logout }) {
 
   // Preview State
   const [previewMode, setPreviewMode] = useState('2d'); // '2d' or '3d'
-  const [previewSvg, setPreviewSvg] = useState(null);
-  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
 
   // Label State
   const [labelForm, setLabelForm] = useState({
@@ -439,40 +417,9 @@ function ConfiguratorApp({ user, logout }) {
   });
   const [isLabelLoading, setIsLabelLoading] = useState(false);
 
-  // 3D Preview Fetch Logic
-  const fetch3DModel = useCallback(async () => {
-    setIsPreviewLoading(true);
-    try {
-      const response = await fetch(`${API_BASE}/generate/preview`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          box_id: selectedBoxId,
-          terminals: config.terminals,
-          holes_top: config.holesTop,
-          holes_bottom: config.holesBottom,
-          holes_left: config.holesLeft,
-          holes_right: config.holesRight
-        })
-      });
-      if (response.ok) {
-        const svgText = await response.text();
-        setPreviewSvg(svgText);
-        setPreviewMode('3d');
-      }
-    } catch (error) {
-      console.error('Preview error', error);
-    } finally {
-      setIsPreviewLoading(false);
-    }
-  }, [selectedBoxId, config]);
-
+  // Toggle between 2D technical drawing and 3D isometric view
   const toggle3DPreview = () => {
-    if (previewMode === '3d') {
-      setPreviewMode('2d');
-    } else {
-      fetch3DModel();
-    }
+    setPreviewMode(prev => prev === '3d' ? '2d' : '3d');
   };
 
   const handleLabelChange = (field, value) => {
@@ -554,44 +501,6 @@ function ConfiguratorApp({ user, logout }) {
     }
   };
 
-  // Load orders from backend
-  const loadOrders = async () => {
-    if (apiStatus !== 'connected') return;
-    try {
-      const response = await fetch(`${API_BASE}/orders`);
-      if (response.ok) {
-        setOrders(await response.json());
-      }
-    } catch (error) {
-      console.warn('Could not load orders', error);
-    }
-  };
-
-  // Load an order into the configurator
-  const loadOrderConfig = (order) => {
-    setSelectedBoxId(order.box_id);
-    setConfig({
-      terminals: order.terminals,
-      holesTop: order.holes_top,
-      holesBottom: order.holes_bottom,
-      holesLeft: order.holes_left,
-      holesRight: order.holes_right,
-    });
-    setShowHistory(false);
-  };
-
-  // Auto-refresh 3D preview if active and config changes? No, too slow. Manual refresh.
-  // But if mode is 3d and config changes, maybe revert to 2d or show stale warning?
-  // Let's keep it simple: switch to 2d on config change.
-  // Auto-refresh 3D preview on config change
-  useEffect(() => {
-    if (previewMode === '3d') {
-      const debounce = setTimeout(() => {
-        fetch3DModel();
-      }, 800); // 800ms debounce for smoother experience
-      return () => clearTimeout(debounce);
-    }
-  }, [config, selectedBoxId, previewMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load order history once connected
   useEffect(() => {
@@ -1011,8 +920,8 @@ function ConfiguratorApp({ user, logout }) {
               onClick={toggle3DPreview}
               title="Toggle High-Fidelity 3D View"
             >
-              {isPreviewLoading ? <div className="loading-spinner" style={{ width: 16, height: 16, border: '2px solid #ccc', borderTopColor: '#333' }} /> : <Box size={16} color={previewMode === '3d' ? '#ffffff' : '#64748b'} />}
-              <span style={{ marginLeft: 6, fontSize: 12, fontWeight: 500, color: previewMode === '3d' ? '#ffffff' : '#64748b' }}>3D View</span>
+              <Box size={16} color={previewMode === '3d' ? '#ffffff' : '#64748b'} />
+              <span style={{ marginLeft: 6, fontSize: 12, fontWeight: 500, color: previewMode === '3d' ? '#ffffff' : '#64748b' }}>{previewMode === '3d' ? '2D' : '3D'}</span>
             </button>
           </div>
 
@@ -1025,10 +934,23 @@ function ConfiguratorApp({ user, logout }) {
         <div className="preview-canvas-container">
           <div
             className="preview-canvas"
-            style={previewMode === '3d' ? { width: '100%', height: '100%', overflow: 'hidden' } : { transform: `scale(${zoom / 100})`, transformOrigin: 'center center' }}
+            style={previewMode === '3d'
+              ? { width: '100%', height: '100%', overflow: 'hidden', background: '#f8fafc' }
+              : { transform: `scale(${zoom / 100})`, transformOrigin: 'center center' }}
           >
-            {previewMode === '3d' && previewSvg ? (
-              <div dangerouslySetInnerHTML={{ __html: previewSvg }} style={{ width: '100%', height: '100%' }} />
+            {previewMode === '3d' ? (
+              <IsometricView
+                box={{
+                  id: selectedBox.id,
+                  name: selectedBox.name,
+                  internalWidth: selectedBox.internal_width,
+                  internalLength: selectedBox.internal_length,
+                  internalDepth: selectedBox.internal_depth,
+                  railCount: selectedBox.rail_count,
+                  maxTerminals: selectedBox.max_terminals
+                }}
+                config={config}
+              />
             ) : (
               <DrawingCanvas
                 box={{
