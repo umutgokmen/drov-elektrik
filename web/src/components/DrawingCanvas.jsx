@@ -1,10 +1,37 @@
 import React from 'react';
 
-/**
- * Multi-view technical drawing canvas
- * 3rd angle projection: Front + Top (above) + Right (to the right)
- * Clean black/white line drawing style
- */
+const HDim = ({ x1, x2, y, value, below = true }) => {
+    const dy = below ? y + 18 : y - 18;
+    const mid = (x1 + x2) / 2;
+    return (
+        <g>
+            <line x1={x1} y1={y} x2={x1} y2={dy} stroke="#333" strokeWidth="0.4" />
+            <line x1={x2} y1={y} x2={x2} y2={dy} stroke="#333" strokeWidth="0.4" />
+            <line x1={x1} y1={dy} x2={x2} y2={dy} stroke="#333" strokeWidth="0.5" />
+            <polygon points={`${x1},${dy} ${x1 + 4},${dy - 1.5} ${x1 + 4},${dy + 1.5}`} fill="#333" />
+            <polygon points={`${x2},${dy} ${x2 - 4},${dy - 1.5} ${x2 - 4},${dy + 1.5}`} fill="#333" />
+            <rect x={mid - 16} y={dy - 6} width={32} height={12} fill="white" />
+            <text x={mid} y={dy + 3} textAnchor="middle" fontSize="8" fontFamily="Helvetica, sans-serif" fill="#333">{value}</text>
+        </g>
+    );
+};
+
+const VDim = ({ y1, y2, x, value, right = true }) => {
+    const dx = right ? x + 18 : x - 18;
+    const mid = (y1 + y2) / 2;
+    return (
+        <g>
+            <line x1={x} y1={y1} x2={dx} y2={y1} stroke="#333" strokeWidth="0.4" />
+            <line x1={x} y1={y2} x2={dx} y2={y2} stroke="#333" strokeWidth="0.4" />
+            <line x1={dx} y1={y1} x2={dx} y2={y2} stroke="#333" strokeWidth="0.5" />
+            <polygon points={`${dx},${y1} ${dx - 1.5},${y1 + 4} ${dx + 1.5},${y1 + 4}`} fill="#333" />
+            <polygon points={`${dx},${y2} ${dx - 1.5},${y2 - 4} ${dx + 1.5},${y2 - 4}`} fill="#333" />
+            <rect x={dx - 6} y={mid - 16} width={12} height={32} fill="white" />
+            <text x={dx} y={mid} textAnchor="middle" fontSize="8" fontFamily="Helvetica, sans-serif" fill="#333" transform={`rotate(-90, ${dx}, ${mid})`}>{value}</text>
+        </g>
+    );
+};
+
 const DrawingCanvas = ({ box, config }) => {
     const canvasWidth = 780;
     const canvasHeight = 560;
@@ -80,40 +107,6 @@ const DrawingCanvas = ({ box, config }) => {
             <line x1={cx} y1={cy - 2.5} x2={cx} y2={cy + 2.5} stroke="#1e293b" strokeWidth="0.5" />
         </g>
     );
-
-    // Dimension line component (horizontal)
-    const HDim = ({ x1, x2, y, value, below = true }) => {
-        const dy = below ? y + 18 : y - 18;
-        const mid = (x1 + x2) / 2;
-        return (
-            <g>
-                <line x1={x1} y1={y} x2={x1} y2={dy} stroke="#333" strokeWidth="0.4" />
-                <line x1={x2} y1={y} x2={x2} y2={dy} stroke="#333" strokeWidth="0.4" />
-                <line x1={x1} y1={dy} x2={x2} y2={dy} stroke="#333" strokeWidth="0.5" />
-                <polygon points={`${x1},${dy} ${x1 + 4},${dy - 1.5} ${x1 + 4},${dy + 1.5}`} fill="#333" />
-                <polygon points={`${x2},${dy} ${x2 - 4},${dy - 1.5} ${x2 - 4},${dy + 1.5}`} fill="#333" />
-                <rect x={mid - 16} y={dy - 6} width={32} height={12} fill="white" />
-                <text x={mid} y={dy + 3} textAnchor="middle" fontSize="8" fontFamily="Helvetica, sans-serif" fill="#333">{value}</text>
-            </g>
-        );
-    };
-
-    // Dimension line component (vertical)
-    const VDim = ({ y1, y2, x, value, right = true }) => {
-        const dx = right ? x + 18 : x - 18;
-        const mid = (y1 + y2) / 2;
-        return (
-            <g>
-                <line x1={x} y1={y1} x2={dx} y2={y1} stroke="#333" strokeWidth="0.4" />
-                <line x1={x} y1={y2} x2={dx} y2={y2} stroke="#333" strokeWidth="0.4" />
-                <line x1={dx} y1={y1} x2={dx} y2={y2} stroke="#333" strokeWidth="0.5" />
-                <polygon points={`${dx},${y1} ${dx - 1.5},${y1 + 4} ${dx + 1.5},${y1 + 4}`} fill="#333" />
-                <polygon points={`${dx},${y2} ${dx - 1.5},${y2 - 4} ${dx + 1.5},${y2 - 4}`} fill="#333" />
-                <rect x={dx - 6} y={mid - 16} width={12} height={32} fill="white" />
-                <text x={dx} y={mid} textAnchor="middle" fontSize="8" fontFamily="Helvetica, sans-serif" fill="#333" transform={`rotate(-90, ${dx}, ${mid})`}>{value}</text>
-            </g>
-        );
-    };
 
     return (
         <svg width={canvasWidth} height={canvasHeight} style={{ background: '#ffffff' }}>

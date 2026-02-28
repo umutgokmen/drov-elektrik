@@ -5,7 +5,7 @@
 /**
  * Calculates evenly spaced positions for holes on a side
  */
-export const calculateHolePositions = (count, sideLength, holeDiameter, minClearance) => {
+export const calculateHolePositions = (count, sideLength, holeDiameter, _minClearance) => {
     if (count <= 0) return [];
 
     const totalInternalSpace = sideLength - (2 * (holeDiameter / 2 + 10)); // 10mm margin from corners
@@ -19,7 +19,7 @@ export const calculateHolePositions = (count, sideLength, holeDiameter, minClear
 /**
  * Calculates terminal and rail layout
  */
-export const calculateLayout = (box, terminalCount, terminalWidth) => {
+export const calculateLayout = (box, terminalCount, _terminalWidth) => {
     const rails = [];
     const terminalsPerRail = Math.ceil(terminalCount / box.railCount);
 
