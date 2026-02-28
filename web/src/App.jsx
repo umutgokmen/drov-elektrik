@@ -9,19 +9,45 @@ import {
 import DrawingCanvas from './components/DrawingCanvas';
 import LoginPage from './components/LoginPage';
 import RegisterPage from './components/RegisterPage';
-import { useAuth } from './contexts/AuthContext';
+import { useAuth } from './contexts/useAuth';
 
 // API Base URL
 const API_BASE = 'http://localhost:8000/api/v1';
 
-// Box models (loaded 서버에서)
+// Box models (loaded from server; these serve as offline fallback only)
 const DEFAULT_BOX_MODELS = [
+  // EJB series
   { id: 'ejb21', name: 'EJB 21', internal_width: 179, internal_length: 169, internal_depth: 160, rail_count: 1, max_terminals: 30, max_holes_long: 10, max_holes_short: 8 },
   { id: 'ejb31', name: 'EJB 31', internal_width: 258, internal_length: 249, internal_depth: 294, rail_count: 2, max_terminals: 52, max_holes_long: 28, max_holes_short: 20 },
   { id: 'ejb51', name: 'EJB 51', internal_width: 388, internal_length: 390, internal_depth: 370, rail_count: 2, max_terminals: 80, max_holes_long: 44, max_holes_short: 24 },
   { id: 'ejb61', name: 'EJB 61', internal_width: 470, internal_length: 500, internal_depth: 360, rail_count: 3, max_terminals: 92, max_holes_long: 72, max_holes_short: 48 },
   { id: 'ejb71', name: 'EJB 71', internal_width: 530, internal_length: 600, internal_depth: 410, rail_count: 3, max_terminals: 110, max_holes_long: 90, max_holes_short: 59 },
   { id: 'ejb91', name: 'EJB 91', internal_width: 650, internal_length: 700, internal_depth: 510, rail_count: 3, max_terminals: 140, max_holes_long: 112, max_holes_short: 70 },
+  // ESP series
+  { id: 'esp1', name: 'ESP 1', internal_width: 80, internal_length: 120, internal_depth: 60, rail_count: 1, max_terminals: 7, max_holes_long: 3, max_holes_short: 2 },
+  { id: 'esp2', name: 'ESP 2', internal_width: 100, internal_length: 150, internal_depth: 80, rail_count: 1, max_terminals: 11, max_holes_long: 4, max_holes_short: 3 },
+  { id: 'esp3', name: 'ESP 3', internal_width: 150, internal_length: 200, internal_depth: 100, rail_count: 1, max_terminals: 21, max_holes_long: 7, max_holes_short: 5 },
+  { id: 'esp4', name: 'ESP 4', internal_width: 200, internal_length: 300, internal_depth: 120, rail_count: 2, max_terminals: 40, max_holes_long: 11, max_holes_short: 7 },
+  { id: 'esp5', name: 'ESP 5', internal_width: 300, internal_length: 400, internal_depth: 150, rail_count: 2, max_terminals: 60, max_holes_long: 15, max_holes_short: 11 },
+  // ESA series
+  { id: 'esa1', name: 'ESA 1', internal_width: 300, internal_length: 300, internal_depth: 180, rail_count: 2, max_terminals: 50, max_holes_long: 14, max_holes_short: 14 },
+  { id: 'esa2', name: 'ESA 2', internal_width: 350, internal_length: 400, internal_depth: 200, rail_count: 2, max_terminals: 70, max_holes_long: 22, max_holes_short: 18 },
+  { id: 'esa3', name: 'ESA 3', internal_width: 200, internal_length: 250, internal_depth: 150, rail_count: 1, max_terminals: 28, max_holes_long: 18, max_holes_short: 12 },
+  { id: 'esa4', name: 'ESA 4', internal_width: 300, internal_length: 350, internal_depth: 200, rail_count: 2, max_terminals: 52, max_holes_long: 24, max_holes_short: 20 },
+  { id: 'esa5', name: 'ESA 5', internal_width: 400, internal_length: 450, internal_depth: 250, rail_count: 2, max_terminals: 76, max_holes_long: 32, max_holes_short: 28 },
+  { id: 'esa6', name: 'ESA 6', internal_width: 450, internal_length: 550, internal_depth: 300, rail_count: 3, max_terminals: 96, max_holes_long: 42, max_holes_short: 32 },
+  // ESX series (stainless steel)
+  { id: 'esx1',  name: 'ESX 1',  internal_width: 400, internal_length: 400, internal_depth: 220, rail_count: 2, max_terminals: 60, max_holes_long: 22, max_holes_short: 22 },
+  { id: 'esx2',  name: 'ESX 2',  internal_width: 450, internal_length: 500, internal_depth: 250, rail_count: 3, max_terminals: 90, max_holes_long: 30, max_holes_short: 26 },
+  { id: 'esx15', name: 'ESX 15', internal_width: 150, internal_length: 150, internal_depth: 80,  rail_count: 1, max_terminals: 16, max_holes_long: 4,  max_holes_short: 4 },
+  { id: 'esx20', name: 'ESX 20', internal_width: 200, internal_length: 200, internal_depth: 100, rail_count: 1, max_terminals: 24, max_holes_long: 6,  max_holes_short: 6 },
+  { id: 'esx30', name: 'ESX 30', internal_width: 250, internal_length: 300, internal_depth: 150, rail_count: 2, max_terminals: 40, max_holes_long: 8,  max_holes_short: 6 },
+  { id: 'esx40', name: 'ESX 40', internal_width: 300, internal_length: 400, internal_depth: 200, rail_count: 2, max_terminals: 56, max_holes_long: 10, max_holes_short: 8 },
+  // EJBX series
+  { id: 'ejbx1', name: 'EJBX 1', internal_width: 160, internal_length: 200, internal_depth: 120, rail_count: 1, max_terminals: 20, max_holes_long: 8,  max_holes_short: 6 },
+  { id: 'ejbx2', name: 'EJBX 2', internal_width: 230, internal_length: 300, internal_depth: 150, rail_count: 2, max_terminals: 40, max_holes_long: 16, max_holes_short: 10 },
+  { id: 'ejbx3', name: 'EJBX 3', internal_width: 310, internal_length: 400, internal_depth: 200, rail_count: 2, max_terminals: 60, max_holes_long: 24, max_holes_short: 14 },
+  { id: 'ejbx4', name: 'EJBX 4', internal_width: 400, internal_length: 500, internal_depth: 250, rail_count: 3, max_terminals: 80, max_holes_long: 32, max_holes_short: 18 },
 ];
 
 function App() {
@@ -77,6 +103,10 @@ function ConfiguratorApp({ user, logout }) {
   const [coverCatalog, setCoverCatalog] = useState([]);
   const [orders, setOrders] = useState([]);
   const [showOrders, setShowOrders] = useState(false);
+
+  // Order history state
+  const [orders, setOrders] = useState([]);
+  const [showHistory, setShowHistory] = useState(false);
 
   const selectedBox = boxModels.find(b => b.id === selectedBoxId) || boxModels[0];
 
@@ -383,16 +413,31 @@ function ConfiguratorApp({ user, logout }) {
 
   // BOM data
   const bomItems = [
-    { name: `${selectedBox.name} Enclosure`, code: `P+F-${selectedBox.id.toUpperCase()}`, qty: 1 },
-    { name: 'NS 35 DIN Rail', code: 'NS35-DIN', qty: selectedBox.rail_count },
-    { name: 'UT 2,5 Terminal Block', code: 'PHX-UT2.5', qty: config.terminals },
-    { name: 'M20 Cable Gland', code: 'M20-GL', qty: totalHoles },
+    { name: `${selectedBox.name} Enclosure`, code: `P+F-${selectedBox.id.toUpperCase()}`, qty: 1, isSaltMalzeme: false },
+    { name: 'NS 35 DIN Rail', code: 'NS35-DIN', qty: selectedBox.rail_count, isSaltMalzeme: false },
+    { name: 'UT 2,5 Terminal Block', code: 'PHX-UT2.5', qty: config.terminals, isSaltMalzeme: false },
+    { name: 'M20 Cable Gland', code: 'M20-GL', qty: totalHoles, isSaltMalzeme: false },
+    { name: 'EJB Cover', code: 'EJB-COVER', qty: 1, isSaltMalzeme: true },
+    { name: 'CLIPFIX 35/5 End Clamp', code: 'pnl_302203_CLIPFIX-35-5', qty: 2, isSaltMalzeme: true },
+    { name: 'Drain Valve M20x1.5', code: 'Drain_Valve_M20x1.5mm', qty: 1, isSaltMalzeme: true },
   ].filter(item => item.qty > 0);
 
   // Preview State
   const [previewMode, setPreviewMode] = useState('2d'); // '2d' or '3d'
   const [previewSvg, setPreviewSvg] = useState(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+
+  // Label State
+  const [labelForm, setLabelForm] = useState({
+    panel_name: '',
+    order_no: '',
+    project_name: '',
+    customer: '',
+    date: '',
+    notes: '',
+    label_size: 'A5',
+  });
+  const [isLabelLoading, setIsLabelLoading] = useState(false);
 
   // 3D Preview Fetch Logic
   const fetch3DModel = useCallback(async () => {
@@ -430,6 +475,35 @@ function ConfiguratorApp({ user, logout }) {
     }
   };
 
+  const handleLabelChange = (field, value) => {
+    setLabelForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const downloadLabel = async () => {
+    if (!labelForm.panel_name || !labelForm.order_no) return;
+    setIsLabelLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/generate/label`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(labelForm)
+      });
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `ETIKET-${labelForm.order_no.replace(/\//g, '-')}.pdf`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error('Label download error', error);
+    } finally {
+      setIsLabelLoading(false);
+    }
+  };
+
   // Fullscreen Handler
   const toggleFullScreen = () => {
     const elem = document.querySelector('.preview-canvas-container');
@@ -442,7 +516,7 @@ function ConfiguratorApp({ user, logout }) {
     }
   };
 
-  // Save Config Handler
+  // Save Config Handler (JSON download - kept for offline use)
   const saveConfig = () => {
     const data = {
       box_id: selectedBoxId,
@@ -458,6 +532,54 @@ function ConfiguratorApp({ user, logout }) {
     window.URL.revokeObjectURL(url);
   };
 
+  // Save Order to backend
+  const saveOrderToHistory = async () => {
+    if (apiStatus !== 'connected') return;
+    try {
+      await fetch(`${API_BASE}/orders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          box_id: selectedBoxId,
+          terminals: config.terminals,
+          holes_top: config.holesTop,
+          holes_bottom: config.holesBottom,
+          holes_left: config.holesLeft,
+          holes_right: config.holesRight,
+        }),
+      });
+      await loadOrders();
+    } catch (error) {
+      console.error('Save order error', error);
+    }
+  };
+
+  // Load orders from backend
+  const loadOrders = async () => {
+    if (apiStatus !== 'connected') return;
+    try {
+      const response = await fetch(`${API_BASE}/orders`);
+      if (response.ok) {
+        setOrders(await response.json());
+      }
+    } catch (error) {
+      console.warn('Could not load orders', error);
+    }
+  };
+
+  // Load an order into the configurator
+  const loadOrderConfig = (order) => {
+    setSelectedBoxId(order.box_id);
+    setConfig({
+      terminals: order.terminals,
+      holesTop: order.holes_top,
+      holesBottom: order.holes_bottom,
+      holesLeft: order.holes_left,
+      holesRight: order.holes_right,
+    });
+    setShowHistory(false);
+  };
+
   // Auto-refresh 3D preview if active and config changes? No, too slow. Manual refresh.
   // But if mode is 3d and config changes, maybe revert to 2d or show stale warning?
   // Let's keep it simple: switch to 2d on config change.
@@ -470,6 +592,13 @@ function ConfiguratorApp({ user, logout }) {
       return () => clearTimeout(debounce);
     }
   }, [config, selectedBoxId, previewMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load order history once connected
+  useEffect(() => {
+    if (apiStatus === 'connected') {
+      loadOrders();
+    }
+  }, [apiStatus]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Keyboard Shortcuts
   useEffect(() => {
@@ -514,6 +643,24 @@ function ConfiguratorApp({ user, logout }) {
           >
             <FileText size={16} />
             Save
+          </button>
+          <button
+            className="toolbar-btn"
+            onClick={saveOrderToHistory}
+            disabled={apiStatus !== 'connected' || !validation.is_valid}
+            title="Save order to history"
+          >
+            <Save size={16} />
+            Save Order
+          </button>
+          <button
+            className="toolbar-btn"
+            onClick={() => { loadOrders(); setShowHistory(true); }}
+            disabled={apiStatus !== 'connected'}
+            title="View order history"
+          >
+            <Clock size={16} />
+            History
           </button>
           <button
             className="toolbar-btn"
@@ -943,14 +1090,15 @@ function ConfiguratorApp({ user, logout }) {
               </thead>
               <tbody>
                 {bomItems.map((item, i) => (
-                  <tr key={i}>
-                    <td>{item.name}</td>
+                  <tr key={i} style={item.isSaltMalzeme ? { opacity: 0.75, fontStyle: 'italic' } : {}}>
+                    <td>{item.name}{item.isSaltMalzeme && <span title="Standard salt malzeme item" style={{ marginLeft: 4, fontSize: 9, color: '#8b5cf6' }}>*</span>}</td>
                     <td style={{ fontFamily: 'var(--font-mono)', fontSize: '10px' }}>{item.code}</td>
                     <td>{item.qty}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            <div style={{ fontSize: '9px', color: '#94a3b8', marginTop: '4px' }}>* Standard salt malzeme (always included)</div>
           </div>
 
           {/* Drawing Info */}
@@ -983,6 +1131,107 @@ function ConfiguratorApp({ user, logout }) {
               </div>
             </div>
           </div>
+
+          {/* Panel Label */}
+          <div className="details-section">
+            <div className="details-section-title">
+              <Tag size={12} style={{ marginRight: 4 }} />
+              Pano Etiketi
+            </div>
+            <div className="form-group">
+              <div className="form-label">Pano Adı *</div>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Örnek: Ana Pano - Kat 1"
+                value={labelForm.panel_name}
+                onChange={(e) => handleLabelChange('panel_name', e.target.value)}
+              />
+            </div>
+            <div className="form-group">
+              <div className="form-label">Sipariş No *</div>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Örnek: 2024/001"
+                value={labelForm.order_no}
+                onChange={(e) => handleLabelChange('order_no', e.target.value)}
+              />
+            </div>
+            <div className="form-group">
+              <div className="form-label">Proje</div>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Proje adı"
+                value={labelForm.project_name}
+                onChange={(e) => handleLabelChange('project_name', e.target.value)}
+              />
+            </div>
+            <div className="form-group">
+              <div className="form-label">Müşteri</div>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Müşteri adı"
+                value={labelForm.customer}
+                onChange={(e) => handleLabelChange('customer', e.target.value)}
+              />
+            </div>
+            <div className="form-group">
+              <div className="form-label">Tarih (GG.AA.YYYY)</div>
+              <input
+                type="text"
+                className="form-input"
+                placeholder={new Date().toLocaleDateString('tr-TR')}
+                value={labelForm.date}
+                onChange={(e) => handleLabelChange('date', e.target.value)}
+              />
+            </div>
+            <div className="form-group">
+              <div className="form-label">Notlar</div>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Opsiyonel notlar"
+                value={labelForm.notes}
+                onChange={(e) => handleLabelChange('notes', e.target.value)}
+              />
+            </div>
+            <div className="form-group">
+              <div className="form-label">Etiket Boyutu</div>
+              <select
+                className="form-select"
+                value={labelForm.label_size}
+                onChange={(e) => handleLabelChange('label_size', e.target.value)}
+              >
+                <option value="A6">A6 (105x148mm)</option>
+                <option value="A5">A5 (148x210mm)</option>
+                <option value="A4">A4 (210x297mm)</option>
+              </select>
+            </div>
+            <button
+              className="toolbar-btn primary"
+              style={{ width: '100%', marginTop: 4, justifyContent: 'center' }}
+              onClick={downloadLabel}
+              disabled={!labelForm.panel_name || !labelForm.order_no || isLabelLoading || apiStatus !== 'connected'}
+              title="Etiket PDF indir"
+            >
+              {isLabelLoading ? (
+                <div className="loading-spinner" />
+              ) : (
+                <>
+                  <Tag size={14} />
+                  Etiket PDF Indir
+                </>
+              )}
+            </button>
+            {apiStatus !== 'connected' && (
+              <div style={{ fontSize: '10px', color: 'var(--accent-warning)', marginTop: 4 }}>
+                API bağlantısı gerekli
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1004,6 +1253,16 @@ function ConfiguratorApp({ user, logout }) {
           <span>Units: mm</span>
         </div>
       </footer>
+
+      {/* Order History Modal */}
+      {showHistory && (
+        <OrderHistory
+          orders={orders}
+          boxModels={boxModels}
+          onLoad={loadOrderConfig}
+          onClose={() => setShowHistory(false)}
+        />
+      )}
     </div>
   );
 }

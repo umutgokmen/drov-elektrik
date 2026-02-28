@@ -1104,12 +1104,8 @@ def try_cadquery_svg(
     """
     import re
 
-    script_path = os.path.join(os.path.dirname(__file__), "../../generate_cad.py")
-    if not os.path.exists(script_path):
-        # Try alternate known location
-        script_path = os.path.expanduser(
-            "~/Documents/GitHub/Drov/backend/generate_cad.py"
-        )
+    _backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    script_path = os.path.join(_backend_dir, "generate_cad.py")
     if not os.path.exists(script_path):
         return False
 

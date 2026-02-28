@@ -6,6 +6,7 @@ from fastapi.responses import Response, StreamingResponse
 from sqlalchemy.orm import Session
 import io
 import os
+import re
 import json
 import subprocess
 from datetime import datetime
@@ -40,7 +41,10 @@ from app.models import (
     get_all_cover_elements,
     get_cover_element_by_id,
     get_cover_elements_by_category,
+    get_all_ejc_box_models,
+    get_ejc_box_model_by_id,
 )
+from app.schemas import EJCBoxModel
 from app.services import (
     run_full_validation,
     calculate_full_layout,
@@ -638,14 +642,28 @@ async def generate_label(label: LabelInput):
     """Generate a panel identification label as PDF"""
     from app.services.drawing.label_engine import generate_label_pdf
 
-    box = get_box_model_by_id(label.box_id)
-    if not box:
-        raise HTTPException(status_code=404, detail=f"Box model '{label.box_id}' not found")
-
-    pdf_bytes = generate_label_pdf(label, box)
-    filename = f"LABEL-{box.id.upper()}.pdf"
+    pdf_bytes = generate_label_pdf(label)
+    safe_order = re.sub(r"[^\w\-]", "_", label.order_no)
+    filename = f"ETIKET-{safe_order}.pdf"
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
+
+
+# ==================== EJC BOX MODELS ====================
+
+@router.get("/ejc/boxes", response_model=list[EJCBoxModel])
+async def list_ejc_box_models():
+    """Get all available EJC box models"""
+    return get_all_ejc_box_models()
+
+
+@router.get("/ejc/boxes/{box_id}", response_model=EJCBoxModel)
+async def get_ejc_box_model(box_id: str):
+    """Get a specific EJC box model by ID"""
+    box = get_ejc_box_model_by_id(box_id)
+    if not box:
+        raise HTTPException(status_code=404, detail=f"EJC box model '{box_id}' not found")
+    return box

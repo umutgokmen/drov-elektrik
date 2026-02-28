@@ -2,32 +2,54 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.pyo
+*.pyd
+.Python
 *.so
 *.egg-info/
+.eggs/
 dist/
 build/
 *.egg
-venv/
-.env
-*.db
-.pytest_cache/
 
-# Node
+# Virtual environments
+.venv/
+venv/
+env/
+.env
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node / frontend
 node_modules/
 dist/
+dist-ssr/
 .vite/
+*.local
+
+# Editors
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*~
 
 # OS
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+# Logs
+*.log
+
+# SQLite database
+*.db
 
 # Generated outputs
 backend/cad_output.*

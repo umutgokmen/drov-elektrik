@@ -5,12 +5,20 @@ import sys
 from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
 
 # Ensure the backend package is importable
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from app.main import app
 from app.models import get_all_box_models, get_box_model_by_id, HOLE_SIZES
 from app.schemas import ConfigurationInput, HoleSideInput
+
+
+@pytest.fixture(scope="session")
+def client():
+    with TestClient(app) as c:
+        yield c
 
 
 @pytest.fixture
@@ -40,3 +48,29 @@ def make_config(box_id: str, **kwargs) -> ConfigurationInput:
     }
     defaults.update(kwargs)
     return ConfigurationInput(**defaults)
+
+
+@pytest.fixture
+def salt_malzeme_config():
+    """Salt malzeme (terminals only, no holes) configuration for EJB 51"""
+    return {
+        "box_id": "ejb51",
+        "terminals": 24,
+        "holes_top": 0,
+        "holes_bottom": 0,
+        "holes_left": 0,
+        "holes_right": 0,
+    }
+
+
+@pytest.fixture
+def mixed_config():
+    """Mixed configuration with terminals and cable entries for EJB 51"""
+    return {
+        "box_id": "ejb51",
+        "terminals": 16,
+        "holes_top": 3,
+        "holes_bottom": 3,
+        "holes_left": 2,
+        "holes_right": 2,
+    }

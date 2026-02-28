@@ -12,6 +12,26 @@ class HoleSideInput(BaseModel):
     size: str = Field("M20", description="Hole size: M20, M25, M32, M40, M50")
 
 
+class EJCBoxModel(BaseModel):
+    """EJC series box model with additional EJC-specific properties"""
+    id: str
+    name: str
+    internal_length: float = Field(..., gt=0)
+    internal_width: float = Field(..., gt=0)
+    internal_depth: float = Field(..., gt=0)
+    max_holes_long: int = Field(..., ge=0)
+    max_holes_short: int = Field(..., ge=0)
+    rail_count: int = Field(..., ge=1)
+    max_terminals: int = Field(..., ge=0)
+    mounting_plate_x: float
+    mounting_plate_y: float
+    ip_rating: str = Field("IP66", description="Ingress protection rating")
+    has_earth_plate: bool = Field(False, description="Whether the model includes an earth bonding plate")
+
+    class Config:
+        from_attributes = True
+
+
 class BoxModelBase(BaseModel):
     """Base schema for box models"""
     id: str
@@ -142,6 +162,7 @@ class BOMItem(BaseModel):
     part_name: str
     part_code: str
     quantity: int
+    is_salt_malzeme: bool = False
 
 
 class BOMResult(BaseModel):
@@ -284,14 +305,19 @@ class OrderListResponse(BaseModel):
 
 # ==================== LABEL ====================
 
+class LabelSize(str, Enum):
+    """Available label sizes"""
+    A6 = "A6"
+    A5 = "A5"
+    A4 = "A4"
+
+
 class LabelInput(BaseModel):
-    """Input for panel label generation"""
-    box_id: str
-    drawing_number: Optional[str] = None
-    order_number: Optional[str] = None
-    customer_name: Optional[str] = None
-    project_name: Optional[str] = None
-    panel_name: Optional[str] = None
-    voltage: Optional[str] = "230V AC"
-    ip_rating: Optional[str] = "IP66"
-    date: Optional[str] = None
+    """Input for panel label PDF generation"""
+    panel_name: str = Field(..., description="Panel name / pano adi")
+    order_no: str = Field(..., description="Order number / siparis no")
+    project_name: str = Field("", description="Project name / proje adi")
+    customer: str = Field("", description="Customer name / musteri adi")
+    date: Optional[str] = Field(None, description="Date in DD.MM.YYYY format; defaults to today")
+    notes: str = Field("", description="Additional notes / notlar")
+    label_size: LabelSize = Field(LabelSize.A5, description="Label paper size")

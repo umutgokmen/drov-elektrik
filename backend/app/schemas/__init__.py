@@ -3,6 +3,7 @@ from .schemas import (
     BoxModel,
     BoxModelBase,
     HoleSideInput,
+    EJCBoxModel,
     ConfigurationInput,
     ValidationError,
     ValidationWarning,
@@ -24,6 +25,7 @@ from .schemas import (
     OrderCreate,
     OrderResponse,
     OrderListResponse,
+    LabelSize,
     LabelInput,
 )
 from .auth import (
