@@ -17,6 +17,8 @@ build/
 venv/
 env/
 .env
+.env.local
+.env.*.local
 
 # pytest
 .pytest_cache/
@@ -29,6 +31,8 @@ dist/
 dist-ssr/
 .vite/
 *.local
+.next/
+.turbo/
 
 # Editors
 .vscode/
@@ -53,3 +57,4 @@ desktop.ini
 
 # Generated outputs
 backend/cad_output.*
+apps/python-api/cad_output.*

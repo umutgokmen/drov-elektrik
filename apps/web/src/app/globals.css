@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 41 96% 52%;
+    --primary-foreground: 218 51% 10%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 41 70% 45%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 41 96% 52%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 218 51% 15%;
+    --foreground: 0 0% 90%;
+    --card: 218 45% 12%;
+    --card-foreground: 0 0% 90%;
+    --popover: 218 45% 12%;
+    --popover-foreground: 0 0% 90%;
+    --primary: 41 96% 52%;
+    --primary-foreground: 218 51% 10%;
+    --secondary: 218 40% 22%;
+    --secondary-foreground: 0 0% 90%;
+    --muted: 218 35% 20%;
+    --muted-foreground: 0 0% 60%;
+    --accent: 41 70% 45%;
+    --accent-foreground: 218 51% 10%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 0 0% 90%;
+    --border: 218 30% 25%;
+    --input: 218 30% 25%;
+    --ring: 41 96% 52%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+.blueprint-grid {
+  background-image:
+    linear-gradient(hsl(218 30% 25% / 0.3) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(218 30% 25% / 0.3) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.technical-frame {
+  border: 2px solid hsl(41 96% 52% / 0.3);
+  position: relative;
+}
+
+.technical-frame::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border: 1px solid hsl(41 96% 52% / 0.15);
+  pointer-events: none;
+}
