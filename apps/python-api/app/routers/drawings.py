@@ -25,14 +25,14 @@ async def generate_drawing(
 
     # Validate configuration
     validation = validate_configuration(config)
-    if not validation["is_valid"]:
-        raise HTTPException(status_code=400, detail=validation["errors"])
+    if not validation.is_valid:
+        raise HTTPException(status_code=400, detail=[e.model_dump() for e in validation.errors])
 
     # Calculate layout
     layout = calculate_full_layout(config)
 
     if request.format == OutputFormat.PDF:
-        pdf_bytes = generate_pdf(config, layout, request.scale, request.include_bom)
+        pdf_bytes = generate_pdf(config, layout)
         return StreamingResponse(
             io.BytesIO(pdf_bytes),
             media_type="application/pdf",

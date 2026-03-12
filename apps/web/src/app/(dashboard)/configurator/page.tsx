@@ -21,13 +21,9 @@ export default function ConfiguratorPage() {
         </p>
       </div>
 
-      {/* Box Selector - full width */}
       <BoxSelector />
-
-      {/* Drawing Preview - full width, prominent */}
       <DrawingPreview />
 
-      {/* Configuration panels - 3 column grid */}
       <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
         <div className="space-y-4">
           <TerminalConfigurator />

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogOut, User, Zap, Wrench, ClipboardList, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/hooks/useAuth";
+// import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
 const navigation = [
@@ -26,7 +26,9 @@ const navigation = [
 ];
 
 export function Header() {
-  const { user, profile, signOut } = useAuth();
+  const user = null;
+  const profile = null;
+  const signOut = () => {};
   const pathname = usePathname();
 
   return (

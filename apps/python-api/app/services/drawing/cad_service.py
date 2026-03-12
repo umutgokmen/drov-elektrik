@@ -1,9 +1,10 @@
 import os
+import sys
 import subprocess
 import json
 from app.schemas import ConfigurationInput
 
-_BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 _CAD_SCRIPT = os.path.join(_BACKEND_DIR, "generate_cad.py")
 
 
@@ -25,7 +26,7 @@ def _run_cad_script(config: ConfigurationInput) -> str:
         "holes_top": config.holes_top,
     })
 
-    conda_python = os.path.expanduser("~/miniconda3/envs/cadquery/bin/python")
+    conda_python = sys.executable
 
     my_env = os.environ.copy()
     if 'PYTHONPATH' in my_env:

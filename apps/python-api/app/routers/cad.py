@@ -18,9 +18,9 @@ async def generate_cad(
 ):
     """Generate a 3D CAD model (STEP format)."""
     try:
-        from app.services.drawing.cad_service import generate_step_model
+        from app.services.drawing.cad_service import generate_step
 
-        step_bytes = generate_step_model(request)
+        step_bytes = generate_step(request)
         return StreamingResponse(
             io.BytesIO(step_bytes),
             media_type="application/step",
