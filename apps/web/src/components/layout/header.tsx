@@ -26,8 +26,8 @@ const navigation = [
 ];
 
 export function Header() {
-  const user = null;
-  const profile = null;
+  const user: { email?: string } | null = null;
+  const profile: { fullName?: string } | null = null;
   const signOut = () => {};
   const pathname = usePathname();
 

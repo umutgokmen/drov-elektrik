@@ -58,3 +58,4 @@ desktop.ini
 # Generated outputs
 backend/cad_output.*
 apps/python-api/cad_output.*
+.vercel
