@@ -2,9 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, User, Zap, Wrench, ClipboardList, Tag } from "lucide-react";
-import { Button } from "@/components/ui/button";
-// import { useAuth } from "@/hooks/useAuth";
+import { User, Zap, Wrench, ClipboardList, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navigation = [
@@ -26,9 +24,6 @@ const navigation = [
 ];
 
 export function Header() {
-  const user: { email?: string } | null = null;
-  const profile: { fullName?: string } | null = null;
-  const signOut = () => {};
   const pathname = usePathname();
 
   return (
@@ -64,15 +59,10 @@ export function Header() {
         </nav>
 
         <div className="ml-auto flex items-center gap-3">
-          {user && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <User className="h-4 w-4" />
-              <span>{profile?.fullName || user.email}</span>
-            </div>
-          )}
-          <Button variant="ghost" size="icon" onClick={signOut} title="Çıkış Yap">
-            <LogOut className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <User className="h-4 w-4" />
+            <span>Demo</span>
+          </div>
         </div>
       </div>
     </header>
