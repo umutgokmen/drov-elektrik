@@ -1034,65 +1034,140 @@ def draw_bom(c, x: float, y: float, box, config, layout, switchgear_positions: l
 def draw_isometric_view(
     c, ox: float, oy: float, box, config, scale: float
 ) -> None:
-    """Draw isometric wireframe as fallback 3D view."""
-    W = box.internal_width * scale
-    L = box.internal_length * scale
-    D = box.internal_depth * scale
+    """Draw improved isometric view with face shading, wall thickness, holes, and internals."""
+    W = box.internal_width * scale    # width (x-axis)
+    H = box.internal_depth * scale    # height (y-axis, up)
+    D = box.internal_length * scale   # depth (z-axis, back)
+    T = WALL_THICKNESS * scale        # wall thickness
 
     cos30 = math.cos(math.radians(30))
     sin30 = math.sin(math.radians(30))
 
-    def iso(x: float, y: float, z: float) -> Tuple[float, float]:
-        px = ox + (x - z) * cos30
-        py = oy + y + (x + z) * sin30
+    def iso(w: float, h: float, d: float) -> Tuple[float, float]:
+        """w=width, h=height (up), d=depth (back). Returns PDF (x,y)."""
+        px = ox + (w - d) * cos30
+        py = oy + h + (w + d) * sin30
         return (px, py)
 
-    # Front face
-    p1 = iso(0, 0, 0)
-    p2 = iso(W, 0, 0)
-    p3 = iso(W, D, 0)
-    p4 = iso(0, D, 0)
+    def filled_poly(pts, fill_color, lw=LW_OUTLINE):
+        p = c.beginPath()
+        p.moveTo(pts[0][0], pts[0][1])
+        for pt in pts[1:]:
+            p.lineTo(pt[0], pt[1])
+        p.close()
+        c.setFillColor(fill_color)
+        c.setStrokeColor(colors.black)
+        c.setLineWidth(lw)
+        c.drawPath(p, fill=1, stroke=1)
 
-    # Back face
-    p5 = iso(0, 0, L)
-    p6 = iso(W, 0, L)
-    p7 = iso(W, D, L)
-    p8 = iso(0, D, L)
+    # Outer box corners (outer dims = internal + 2*T)
+    bfl = iso(-T,   -T,   -T  )   # bottom-front-left
+    bfr = iso(W+T,  -T,   -T  )   # bottom-front-right
+    bbr = iso(W+T,  -T,   D+T )   # bottom-back-right
+    bbl = iso(-T,   -T,   D+T )   # bottom-back-left
+    tfl = iso(-T,   H+T,  -T  )   # top-front-left
+    tfr = iso(W+T,  H+T,  -T  )   # top-front-right
+    tbr = iso(W+T,  H+T,  D+T )   # top-back-right
+    tbl = iso(-T,   H+T,  D+T )   # top-back-left
 
+    # Inner front opening corners
+    itfl = iso(0, H, 0)
+    itfr = iso(W, H, 0)
+    ibfl = iso(0, 0, 0)
+    ibfr = iso(W, 0, 0)
+
+    # Face shading: top=darkest, right=medium, front=light
+    color_top   = colors.Color(0.65, 0.65, 0.65)
+    color_right = colors.Color(0.75, 0.75, 0.75)
+    color_front = colors.Color(0.86, 0.86, 0.86)
+    color_inner = colors.Color(0.97, 0.97, 0.97)
+
+    # Hidden back edges first
+    c.setStrokeColor(colors.Color(0.65, 0.65, 0.65))
+    c.setLineWidth(LW_HIDDEN)
+    c.setDash([3, 3])
+    for a, b in [(bfl, bbl), (bbl, bbr), (bbl, tbl)]:
+        c.line(a[0], a[1], b[0], b[1])
+    c.setDash([])
+
+    # Draw faces back-to-front for proper occlusion
+    filled_poly([tfl, tfr, tbr, tbl], color_top)
+    filled_poly([tfr, tbr, bbr, bfr], color_right)
+    filled_poly([tfl, tfr, bfr, bfl], color_front)
+
+    # Mounting plate — dashed hidden lines inside box
+    mp_d = T + D * 0.15
+    mptl = iso(0, H, mp_d)
+    mptr = iso(W, H, mp_d)
+    mpbl = iso(0, 0, mp_d)
+    mpbr = iso(W, 0, mp_d)
+    c.setStrokeColor(colors.Color(0.45, 0.45, 0.45))
+    c.setLineWidth(LW_HIDDEN)
+    c.setDash([4, 3])
+    for a, b in [(mptl, mptr), (mptr, mpbr), (mpbr, mpbl), (mpbl, mptl)]:
+        c.line(a[0], a[1], b[0], b[1])
+    c.setDash([])
+
+    # DIN rails — solid lines inside the box
+    rail_count = getattr(box, 'rail_count', 1)
+    c.setDash([])
+    for i in range(rail_count):
+        ry = H * (i + 1) / (rail_count + 1)
+        rp1 = iso(0, ry, mp_d)
+        rp2 = iso(W, ry, mp_d)
+        c.setStrokeColor(colors.Color(0.20, 0.20, 0.20))
+        c.setLineWidth(1.8)
+        c.line(rp1[0], rp1[1], rp2[0], rp2[1])
+
+    # Wall thickness edges on front face (shows enclosure is hollow)
+    c.setStrokeColor(colors.Color(0.35, 0.35, 0.35))
+    c.setLineWidth(0.4)
+    for a, b in [(itfl, itfr), (itfr, ibfr), (ibfr, ibfl), (ibfl, itfl)]:
+        c.line(a[0], a[1], b[0], b[1])
+
+    # Redraw outer visible edges cleanly on top
     c.setStrokeColor(colors.black)
     c.setLineWidth(LW_OUTLINE)
     c.setDash([])
-
-    # Visible edges (front face)
-    for a, b in [(p1, p2), (p2, p3), (p3, p4), (p4, p1)]:
+    for a, b in [
+        (bfl, bfr), (bfr, bbr),
+        (bfl, tfl), (bfr, tfr), (bbr, tbr),
+        (tfl, tfr), (tfr, tbr), (tbr, tbl), (tbl, tfl),
+    ]:
         c.line(a[0], a[1], b[0], b[1])
 
-    # Top face
-    for a, b in [(p4, p8), (p3, p7), (p8, p7)]:
-        c.line(a[0], a[1], b[0], b[1])
-
-    # Right face
-    for a, b in [(p2, p6), (p6, p7)]:
-        c.line(a[0], a[1], b[0], b[1])
-
-    # Hidden edges
-    c.setLineWidth(LW_HIDDEN)
-    c.setDash([2, 2])
-    for a, b in [(p1, p5), (p5, p6), (p5, p8)]:
-        c.line(a[0], a[1], b[0], b[1])
-    c.setDash([])
-
-    # Hole indicators on front face (top edge)
+    # Holes on top face
     hole_d_top = _get_hole_diameter(config, "top")
     for hp in _hole_positions_on_side(config.holes_top, box.internal_width):
-        hx = hp * scale
-        # Position on top edge of front face
-        pt = iso(hx, D, 0)
-        r = (hole_d_top / 2) * scale * 0.5
+        pt = iso(hp * scale, H + T, 0)
+        r = max(3.0, (hole_d_top / 2) * scale * 0.65)
+        c.setFillColor(colors.Color(0.15, 0.15, 0.15))
+        c.setStrokeColor(colors.black)
         c.setLineWidth(LW_THIN)
-        c.circle(pt[0], pt[1], r, fill=0, stroke=1)
+        c.circle(pt[0], pt[1], r, fill=1)
 
-    draw_view_label(c, ox, oy - 15 * mm, "3D ISOMETRIC VIEW")
+    # Holes on right face
+    hole_d_right = _get_hole_diameter(config, "right")
+    for hp in _hole_positions_on_side(config.holes_right, box.internal_length):
+        pt = iso(W + T, H / 2, hp * scale)
+        r = max(3.0, (hole_d_right / 2) * scale * 0.65)
+        c.setFillColor(colors.Color(0.15, 0.15, 0.15))
+        c.setStrokeColor(colors.black)
+        c.setLineWidth(LW_THIN)
+        c.circle(pt[0], pt[1], r, fill=1)
+
+    # Holes on bottom face (front portion visible from this angle)
+    hole_d_bot = _get_hole_diameter(config, "bottom")
+    for hp in _hole_positions_on_side(config.holes_bottom, box.internal_width):
+        pt = iso(hp * scale, -T, T + D * 0.3)
+        r = max(3.0, (hole_d_bot / 2) * scale * 0.65)
+        c.setFillColor(colors.Color(0.15, 0.15, 0.15))
+        c.setStrokeColor(colors.black)
+        c.setLineWidth(LW_THIN)
+        c.circle(pt[0], pt[1], r, fill=1)
+
+    label_cx = ox + (W / 2 - D / 2) * cos30
+    draw_view_label(c, label_cx, oy - 15 * mm, "3D ISOMETRIC VIEW")
 
 
 def try_cadquery_svg(
@@ -1407,18 +1482,24 @@ def build_page4(c, page_w: float, page_h: float, box, config, layout) -> None:
     success = try_cadquery_svg(c, center_x, center_y, 250 * mm, box, config)
 
     if not success:
-        # Fallback wireframe isometric
-        max_dim = max(box.internal_width, box.internal_length, box.internal_depth)
-        iso_scale = min(180 * mm / max_dim, 0.5)
-        draw_isometric_view(c, center_x - 40 * mm, center_y - 60 * mm, box, config, iso_scale)
+        # Calculate scale to fill ~70% of the page area
+        cos30 = math.cos(math.radians(30))
+        sin30 = math.sin(math.radians(30))
+        bw = box.internal_width + box.internal_length
+        target_w = 280 * mm
+        target_h = 190 * mm
+        scale_w = target_w / (bw * cos30)
+        scale_h = target_h / (box.internal_depth + bw * sin30)
+        iso_scale = min(scale_w, scale_h) * 0.88
 
-        c.setFont("Helvetica", 8)
-        c.setFillColor(colors.Color(0.5, 0.5, 0.5))
-        c.drawCentredString(
-            center_x,
-            FRAME_MARGIN + 55 * mm,
-            "Note: CadQuery not available. Showing simplified wireframe isometric view.",
-        )
+        # Center the isometric box on the page
+        W = box.internal_width * iso_scale
+        H = box.internal_depth * iso_scale
+        D = box.internal_length * iso_scale
+        ox = center_x - (W / 2 - D / 2) * cos30
+        oy = center_y - H / 2 - (W / 2 + D / 2) * sin30
+
+        draw_isometric_view(c, ox, oy, box, config, iso_scale)
 
     draw_title_block(c, page_w, page_h, box, config, 4, 4)
 
