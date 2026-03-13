@@ -11,6 +11,7 @@ from app.services.drawing.pdf_engine import generate_pdf
 from app.services.drawing.dxf_engine import generate_dxf
 from app.services.geometry.layout_service import calculate_full_layout
 from app.services.geometry.validation_service import run_full_validation as validate_configuration
+from app.services.geometry.switchgear_layout import calculate_switchgear_positions
 
 router = APIRouter()
 
@@ -31,8 +32,16 @@ async def generate_drawing(
     # Calculate layout
     layout = calculate_full_layout(config)
 
+    # Calculate switchgear positions if provided
+    switchgear_positions = []
+    if request.switchgear_rails:
+        positions, _, _ = calculate_switchgear_positions(
+            request.switchgear_rails, layout.rails, config.box_id
+        )
+        switchgear_positions = positions
+
     if request.format == OutputFormat.PDF:
-        pdf_bytes = generate_pdf(config, layout)
+        pdf_bytes = generate_pdf(config, layout, switchgear_positions=switchgear_positions)
         return StreamingResponse(
             io.BytesIO(pdf_bytes),
             media_type="application/pdf",
