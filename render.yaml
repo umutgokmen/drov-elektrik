@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: drov-elektrik-api
+    runtime: docker
+    dockerfilePath: ./apps/python-api/Dockerfile
+    dockerContext: ./apps/python-api
+    plan: free
+    envVars:
+      - key: SUPABASE_URL
+        value: https://fcfhkgwvnscrabsebxyu.supabase.co
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: CORS_ORIGINS
+        value: '["http://localhost:3000","https://drov-elektrik.vercel.app"]'

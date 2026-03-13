@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS: list[str] = [
         "http://localhost:3000",
         "http://localhost:3001",
+        "https://drov-elektrik.vercel.app",
     ]
     SUPABASE_URL: str = ""
     SUPABASE_SERVICE_KEY: str = ""
